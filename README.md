@@ -7,13 +7,77 @@ A Docker container that provides an Arch Linux development environment with VS C
 - **Base**: Official Arch Linux (`archlinux/archlinux:latest`)
 - **VS Code**: Microsoft VS Code direct download from official servers
 - **Web Access**: VS Code serve-web for direct localhost browser access
-- **Platform**: Currently supports AMD64 architecture
+- **Platform**: AMD64 architecture only
 - **Volume Mapping**: Mount your project directory for persistent development
 - **User Permissions**: Configurable PUID/PGID for proper file permissions
 
 ## Quick Start
 
-### Build and Run Locally
+### Using Pre-built Images (Recommended)
+
+```bash
+# Pull from Docker Hub
+docker pull jjgroenendijk/arch-vscode:latest
+
+# Or pull from GitHub Container Registry
+docker pull ghcr.io/jjgroenendijk/arch-vscode:latest
+
+# Run with your project directory mounted
+docker run -it --rm -v $(pwd):/workspace -p 8080:8080 jjgroenendijk/arch-vscode:latest
+```
+
+### Using Docker Compose
+
+Create a `docker-compose.yml` file in your project directory:
+
+```yaml
+services:
+  arch-vscode:
+    image: ghcr.io/jjgroenendijk/arch-vscode:latest
+    container_name: arch-vscode-dev
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - WORKSPACE_DIR=/workspace
+      - VSCODE_USER_DATA_DIR=/config/user-data
+      - VSCODE_EXTENSIONS_DIR=/config/extensions
+      - VSCODE_SERVER_DATA_DIR=/config/server-data
+      - AUTO_UPDATE=${AUTO_UPDATE:-false}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./:/workspace
+      - vscode-config:/config
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  vscode-config:
+    driver: local
+
+```
+
+Then run:
+
+```bash
+# Run in background
+docker-compose up -d
+
+# Stop and remove
+docker-compose down
+```
+
+### Build Locally (Optional)
+
+If you prefer to build the image yourself:
 
 ```bash
 # Clone the repository
@@ -25,19 +89,6 @@ docker build -t arch-vscode .
 
 # Run with your project directory mounted
 docker run -it --rm -v $(pwd):/workspace -p 8080:8080 arch-vscode
-```
-
-### Using Docker Compose
-
-```bash
-# Start the development environment
-docker-compose up
-
-# Run in background
-docker-compose up -d
-
-# Stop and remove
-docker-compose down
 ```
 
 ## Configuration
@@ -73,24 +124,24 @@ docker-compose down
 Mount your project directory to `/workspace` in the container:
 
 ```bash
-docker run -v /path/to/your/project:/workspace arch-vscode
+docker run -v /path/to/your/project:/workspace jjgroenendijk/arch-vscode:latest
 ```
 
 ## Available Images
 
-### Local Development
-- `arch-vscode` - Full development environment with build tools
-
-### Published Images (Coming Soon)
-- `jjgroenendijk/arch-vscode:latest` - Latest stable release
+### Pre-built Images
+- `jjgroenendijk/arch-vscode:latest` - Docker Hub (latest stable release)
 - `ghcr.io/jjgroenendijk/arch-vscode:latest` - GitHub Container Registry
+
+### Local Development
+- `arch-vscode` - Built locally from source
 
 ## VS Code Access
 
 ### Direct Browser Access
 ```bash
 # Run with port mapping
-docker run -p 8080:8080 arch-vscode
+docker run -p 8080:8080 jjgroenendijk/arch-vscode:latest
 
 # Access at http://localhost:8080 (no authentication required)
 ```
@@ -150,9 +201,6 @@ volumes:
 
 ## Architecture
 
-### Platform Support
-- **AMD64**: Intel/AMD processors (primary support)
-- **ARM64**: Architecture support in Dockerfile but not currently published
 
 ### Container Structure
 ```
@@ -172,13 +220,11 @@ volumes:
 # Standard build
 docker build -t arch-vscode .
 
-# AMD64 build (currently supported)
 docker build -t arch-vscode .
 ```
 
 ### Development Builds
 ```bash
-# Standard build (only variant currently available)
 docker build -t arch-vscode .
 ```
 
@@ -189,20 +235,17 @@ docker build -t arch-vscode .
 **Container exits immediately**:
 - Check container logs: `docker logs <container-name>`
 - Verify tunnel authentication
-- Try interactive mode: `docker run -it arch-vscode /bin/bash`
+- Try interactive mode: `docker run -it jjgroenendijk/arch-vscode:latest /bin/bash`
 
 **Permission issues**:
-- Set correct PUID/PGID: `docker run -e PUID=$(id -u) -e PGID=$(id -g) arch-vscode`
+- Set correct PUID/PGID: `docker run -e PUID=$(id -u) -e PGID=$(id -g) jjgroenendijk/arch-vscode:latest`
 - Check volume mount permissions
 
 **VS Code web interface not accessible**:
 - Ensure port 8080 is not blocked
 - Check container logs for errors: `docker logs <container-name>`
-- Verify VS Code is running: `docker run arch-vscode code --version`
+- Verify VS Code is running: `docker run jjgroenendijk/arch-vscode:latest code --version`
 
-**Platform warnings**:
-- Use `--platform` flag: `docker run --platform linux/amd64 arch-vscode`
-- Or build for your platform: `docker buildx build --platform linux/$(arch)`
 
 ### Debug Commands
 
@@ -217,10 +260,10 @@ docker logs <container-name>
 docker exec -it <container-name> /bin/bash
 
 # Test VS Code installation
-docker run arch-vscode code --version
+docker run jjgroenendijk/arch-vscode:latest code --version
 
 # Check available packages
-docker run arch-vscode pacman -Q | grep code
+docker run jjgroenendijk/arch-vscode:latest pacman -Q | grep code
 ```
 
 ## Development Notes
@@ -230,12 +273,9 @@ docker run arch-vscode pacman -Q | grep code
 - **Dependencies**: Essential VS Code libraries (libsecret, libxkbfile, ripgrep) plus base development tools
 - **Container**: Official Arch Linux image
 
-### Known Limitations
-- ARM64 architecture: Dockerfile supports it but published images are AMD64 only
 
 ### Future Enhancements
 - CI/CD pipeline for automated builds
-- Multi-platform builds (ARM64 support)
 - Multi-registry publishing (Docker Hub + GitHub Container Registry)
 - Additional development language support
 - Custom VS Code extensions pre-installed
