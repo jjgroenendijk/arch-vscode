@@ -7,9 +7,6 @@ set -e
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 WORKSPACE_DIR=${WORKSPACE_DIR:-/workspace}
-VSCODE_USER_DATA_DIR=${VSCODE_USER_DATA_DIR:-/config/user-data}
-VSCODE_EXTENSIONS_DIR=${VSCODE_EXTENSIONS_DIR:-/config/extensions}
-VSCODE_SERVER_DATA_DIR=${VSCODE_SERVER_DATA_DIR:-/config/server-data}
 EXTRA_PACKAGES=${EXTRA_PACKAGES:-""}
 AUTO_UPDATE=${AUTO_UPDATE:-false}
 
@@ -38,21 +35,12 @@ setup_user() {
         # Modify user
         sudo usermod -u "$PUID" -g "$PGID" developer
         
-        # Fix ownership of home directory
-        sudo chown -R "$PUID:$PGID" /home/developer
+        # Fix ownership of home directory and directories
+        sudo chown -R "$PUID:$PGID" /home/developer /workspace /config
+    else
+        # Ensure correct ownership even if UIDs match
+        sudo chown -R "$PUID:$PGID" /workspace /config
     fi
-    
-    # Ensure workspace directory exists and has correct permissions
-    if [ ! -d "$WORKSPACE_DIR" ]; then
-        sudo mkdir -p "$WORKSPACE_DIR"
-    fi
-    sudo chown -R "$PUID:$PGID" "$WORKSPACE_DIR"
-    
-    # Ensure config directory exists and has correct permissions
-    if [ ! -d "/config" ]; then
-        sudo mkdir -p "/config"
-    fi
-    sudo chown -R "$PUID:$PGID" "/config"
     
     log "User permissions configured successfully"
 }
@@ -95,22 +83,6 @@ setup_auto_update() {
     fi
 }
 
-# Function to initialize VS Code
-init_vscode() {
-    log "Initializing VS Code..."
-    
-    # Create VS Code directories in /config
-    mkdir -p "$VSCODE_USER_DATA_DIR"
-    mkdir -p "$VSCODE_EXTENSIONS_DIR"
-    mkdir -p "$VSCODE_SERVER_DATA_DIR"
-    
-    log "VS Code directories created:"
-    log "  User data: $VSCODE_USER_DATA_DIR"
-    log "  Extensions: $VSCODE_EXTENSIONS_DIR"
-    log "  Server data: $VSCODE_SERVER_DATA_DIR"
-    log "VS Code initialized successfully"
-}
-
 # Function to start VS Code serve-web
 start_vscode() {
     log "Starting VS Code serve-web..."
@@ -118,8 +90,12 @@ start_vscode() {
     # Change to workspace directory
     cd "$WORKSPACE_DIR"
     
-    # Execute the passed command or start serve-web
-    exec "$@"
+    # Start VS Code serve-web with custom data directories
+    exec code serve-web \
+        --host 0.0.0.0 \
+        --port 8080 \
+        --without-connection-token \
+        --server-data-dir /config/server-data
 }
 
 # Function to handle shutdown
@@ -158,12 +134,8 @@ main() {
     # Setup auto-update if enabled
     setup_auto_update
     
-    # Initialize VS Code
-    init_vscode
-    
-    # Execute passed command
-    log "Executing command: $*"
-    start_vscode "$@"
+    # Start VS Code
+    start_vscode
 }
 
 # Run main function

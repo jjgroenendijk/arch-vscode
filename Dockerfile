@@ -28,6 +28,8 @@ RUN pacman -Syu --noconfirm && \
         libxdamage \
         libxfixes \
         ca-certificates \
+        ca-certificates-mozilla \
+        openssl \
         && \
     pacman -Scc --noconfirm
 
@@ -54,9 +56,9 @@ RUN case ${TARGETARCH} in \
 # Switch back to root for system configuration
 USER root
 
-# Create workspace and config directories
-RUN mkdir -p /workspace /config && \
-    chown developer:developer /workspace /config
+# Create workspace and config directories with subdirectories
+RUN mkdir -p /workspace /config/user-data /config/extensions /config/server-data && \
+    chown -R developer:developer /workspace /config
 
 # Set up environment variables
 ENV PUID=1000 \
@@ -67,13 +69,17 @@ ENV PUID=1000 \
     VSCODE_SERVER_DATA_DIR=/config/server-data \
     EXTRA_PACKAGES="" \
     AUTO_UPDATE=false \
-    TZ=UTC
+    TZ=UTC \
+    SSL_CERT_DIR=/etc/ssl/certs \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    XDG_CONFIG_HOME=/config \
+    XDG_DATA_HOME=/config
 
 # Copy entrypoint script and auto-update script
 COPY scripts/${ENTRYPOINT_SCRIPT} /usr/local/bin/entrypoint.sh
 COPY scripts/auto-update.sh /usr/local/bin/auto-update.sh
-COPY scripts/start-vscode.sh /usr/local/bin/start-vscode.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/auto-update.sh /usr/local/bin/start-vscode.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/auto-update.sh
 
 # Add OCI labels for container metadata
 LABEL org.opencontainers.image.title="Arch Linux VS Code Container" \
@@ -97,6 +103,3 @@ USER developer
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# Default command using wrapper script
-CMD ["/usr/local/bin/start-vscode.sh"]
