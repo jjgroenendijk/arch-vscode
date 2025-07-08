@@ -1,0 +1,152 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Custom tag for the image'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY_DOCKERHUB: docker.io
+  REGISTRY_GHCR: ghcr.io
+  IMAGE_NAME: jjgroenendijk/arch-vscode
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY_DOCKERHUB }}
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+    - name: Login to GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY_GHCR }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ${{ env.REGISTRY_DOCKERHUB }}/${{ env.IMAGE_NAME }}
+          ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr,prefix=pr-
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+        labels: |
+          org.opencontainers.image.title=Arch Linux VS Code Container
+          org.opencontainers.image.description=Arch Linux container with VS Code accessible via web interface
+          org.opencontainers.image.source=https://github.com/jjgroenendijk/arch-vscode
+          org.opencontainers.image.licenses=MIT
+          org.opencontainers.image.vendor=jjgroenendijk
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: true
+        sbom: true
+
+    - name: Generate SBOM attestation
+      if: github.event_name != 'pull_request'
+      uses: actions/attest-build-provenance@v1
+      with:
+        subject-name: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
+        subject-digest: ${{ steps.build.outputs.digest }}
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:latest
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      if: github.event_name != 'pull_request'
+
+    - name: Upload Trivy scan results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: github.event_name != 'pull_request'
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Test container startup
+      run: |
+        echo "Testing container startup..."
+        docker run --rm --name test-container -d \
+          -p 8080:8080 \
+          ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:latest
+        
+        # Wait for container to be ready
+        sleep 30
+        
+        # Check if container is running
+        if docker ps | grep -q test-container; then
+          echo "✅ Container is running successfully"
+        else
+          echo "❌ Container failed to start"
+          docker logs test-container
+          exit 1
+        fi
+        
+        # Stop the test container
+        docker stop test-container
+        echo "✅ Container test completed successfully"
+
+    - name: Create release summary
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      run: |
+        echo "## 🐳 Docker Image Built and Pushed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Images Published:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker Hub**: \`docker pull ${{ env.REGISTRY_DOCKERHUB }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **GitHub Container Registry**: \`docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Quick Start:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "docker run -it --rm -v \$(pwd):/workspace -p 8080:8080 ${{ env.REGISTRY_DOCKERHUB }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Access:" >> $GITHUB_STEP_SUMMARY
+        echo "Open [http://localhost:8080](http://localhost:8080) in your browser" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Build Info:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: linux/amd64" >> $GITHUB_STEP_SUMMARY
+        echo "- **Base Image**: archlinux:latest" >> $GITHUB_STEP_SUMMARY
+        echo "- **VS Code**: Latest stable from Microsoft" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
