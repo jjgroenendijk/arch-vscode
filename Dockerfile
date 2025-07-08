@@ -8,9 +8,12 @@ ARG TARGETARCH=amd64
 # Set environment for non-interactive installation
 ENV LANG=C.UTF-8
 
+# Enable parallel downloads for faster package installation
+RUN echo "ParallelDownloads = 5" >> /etc/pacman.conf
+
 # Update system and install base packages
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm \
+RUN pacman -Syu --noconfirm --quiet && \
+    pacman -S --noconfirm --quiet \
         base-devel \
         git \
         curl \
@@ -29,7 +32,7 @@ RUN pacman -Syu --noconfirm && \
         ca-certificates-mozilla \
         openssl \
         && \
-    pacman -Scc --noconfirm
+    pacman -Scc --noconfirm --quiet
 
 # Create non-root user
 RUN useradd -m -s /bin/bash -G wheel developer && \

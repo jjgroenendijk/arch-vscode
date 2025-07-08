@@ -15,17 +15,17 @@ update_system() {
     log "Starting system update..."
     
     # Update package databases and upgrade system
-    if sudo pacman -Syu --noconfirm; then
+    if sudo pacman -Syu --noconfirm --quiet; then
         log "System update completed successfully"
         
         # Clean package cache to save space
-        sudo pacman -Scc --noconfirm
+        sudo pacman -Scc --noconfirm --quiet
         log "Package cache cleaned"
         
         # Update AUR packages if yay is available
         if command -v yay &> /dev/null; then
             log "Updating AUR packages..."
-            if yay -Syu --noconfirm; then
+            if yay -Syu --noconfirm --quiet; then
                 log "AUR packages updated successfully"
             else
                 log "Warning: AUR package update failed"
