@@ -7,7 +7,7 @@ A Docker container that provides an Arch Linux development environment with VS C
 - **Base**: Official Arch Linux (`archlinux/archlinux:latest`)
 - **VS Code**: Microsoft VS Code direct download from official servers
 - **Web Access**: VS Code serve-web for direct localhost browser access
-- **Multi-Platform**: Supports both AMD64 and ARM64 architectures
+- **Platform**: Currently supports AMD64 architecture
 - **Volume Mapping**: Mount your project directory for persistent development
 - **User Permissions**: Configurable PUID/PGID for proper file permissions
 
@@ -44,9 +44,29 @@ docker-compose down
 
 ### Environment Variables
 
+#### Core Configuration
 - `PUID=1000` - User ID for file permissions
 - `PGID=1000` - Group ID for file permissions  
 - `WORKSPACE_DIR=/workspace` - Workspace directory path
+
+#### VS Code Configuration
+- `VSCODE_USER_DATA_DIR=/config/user-data` - VS Code user data directory
+- `VSCODE_EXTENSIONS_DIR=/config/extensions` - VS Code extensions directory
+- `VSCODE_SERVER_DATA_DIR=/config/server-data` - VS Code server data directory
+
+#### System Configuration
+- `EXTRA_PACKAGES=""` - Additional packages to install via yay (space-separated)
+- `AUTO_UPDATE=false` - Enable automatic system updates every 24 hours
+- `TZ=UTC` - Timezone setting
+
+#### SSL/TLS Configuration
+- `SSL_CERT_DIR=/etc/ssl/certs` - SSL certificates directory
+- `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` - SSL certificate file
+- `CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt` - Curl CA bundle path
+
+#### XDG Configuration
+- `XDG_CONFIG_HOME=/config` - XDG config directory
+- `XDG_DATA_HOME=/config` - XDG data directory
 
 ### Volume Mapping
 
@@ -130,10 +150,9 @@ volumes:
 
 ## Architecture
 
-### Multi-Platform Support
-- **AMD64**: Intel/AMD processors
-- **ARM64**: Apple Silicon, ARM servers
-- Built using Docker Buildx with QEMU emulation
+### Platform Support
+- **AMD64**: Intel/AMD processors (primary support)
+- **ARM64**: Architecture support in Dockerfile but not currently published
 
 ### Container Structure
 ```
@@ -153,8 +172,8 @@ volumes:
 # Standard build
 docker build -t arch-vscode .
 
-# Multi-platform build
-docker buildx build --platform linux/amd64,linux/arm64 -t arch-vscode .
+# AMD64 build (currently supported)
+docker build -t arch-vscode .
 ```
 
 ### Development Builds
@@ -212,10 +231,11 @@ docker run arch-vscode pacman -Q | grep code
 - **Container**: Official Arch Linux image
 
 ### Known Limitations
-- ARM64 images run via emulation on x86_64 hosts
+- ARM64 architecture: Dockerfile supports it but published images are AMD64 only
 
 ### Future Enhancements
 - CI/CD pipeline for automated builds
+- Multi-platform builds (ARM64 support)
 - Multi-registry publishing (Docker Hub + GitHub Container Registry)
 - Additional development language support
 - Custom VS Code extensions pre-installed
