@@ -75,21 +75,6 @@ docker-compose up -d
 docker-compose down
 ```
 
-### Build Locally (Optional)
-
-If you prefer to build the image yourself:
-
-```bash
-# Clone the repository
-git clone https://github.com/jjgroenendijk/arch-vscode.git
-cd arch-vscode
-
-# Build the image
-docker build -t arch-vscode .
-
-# Run with your project directory mounted
-docker run -it --rm -v $(pwd):/workspace -p 8080:8080 arch-vscode
-```
 
 ## Configuration
 
@@ -213,20 +198,6 @@ volumes:
     └── entrypoint.sh  # Container startup script
 ```
 
-## Building
-
-### Local Build
-```bash
-# Standard build
-docker build -t arch-vscode .
-
-docker build -t arch-vscode .
-```
-
-### Development Builds
-```bash
-docker build -t arch-vscode .
-```
 
 ## Troubleshooting
 
@@ -265,27 +236,6 @@ docker run jjgroenendijk/arch-vscode:latest code --version
 # Check available packages
 docker run jjgroenendijk/arch-vscode:latest pacman -Q | grep code
 ```
-
-## Development Notes
-
-### Package Sources
-- **Microsoft VS Code**: Direct download from official Microsoft servers
-- **Dependencies**: Essential VS Code libraries (libsecret, libxkbfile, ripgrep) plus base development tools
-- **Container**: Official Arch Linux image
-
-
-### Future Enhancements
-- CI/CD pipeline for automated builds
-- Multi-registry publishing (Docker Hub + GitHub Container Registry)
-- Additional development language support
-- Custom VS Code extensions pre-installed
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Test your changes locally
-4. Submit a pull request
 
 ## License
 
