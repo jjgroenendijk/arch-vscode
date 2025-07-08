@@ -7,7 +7,11 @@ set -e
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 WORKSPACE_DIR=${WORKSPACE_DIR:-/workspace}
+VSCODE_USER_DATA_DIR=${VSCODE_USER_DATA_DIR:-/config/user-data}
+VSCODE_EXTENSIONS_DIR=${VSCODE_EXTENSIONS_DIR:-/config/extensions}
+VSCODE_SERVER_DATA_DIR=${VSCODE_SERVER_DATA_DIR:-/config/server-data}
 EXTRA_PACKAGES=${EXTRA_PACKAGES:-""}
+AUTO_UPDATE=${AUTO_UPDATE:-false}
 
 # Function to log messages
 log() {
@@ -44,6 +48,12 @@ setup_user() {
     fi
     sudo chown -R "$PUID:$PGID" "$WORKSPACE_DIR"
     
+    # Ensure config directory exists and has correct permissions
+    if [ ! -d "/config" ]; then
+        sudo mkdir -p "/config"
+    fi
+    sudo chown -R "$PUID:$PGID" "/config"
+    
     log "User permissions configured successfully"
 }
 
@@ -66,13 +76,38 @@ install_extra_packages() {
     fi
 }
 
+# Function to setup auto-update
+setup_auto_update() {
+    log "Configuring auto-update..."
+    
+    if [ "$AUTO_UPDATE" = "true" ]; then
+        log "Auto-update is enabled, setting up cron job..."
+        
+        # Start cron daemon
+        sudo service cronie start
+        
+        # Create cron job to run auto-update every 24 hours at 2 AM
+        echo "0 2 * * * /usr/local/bin/auto-update.sh >> /var/log/auto-update.log 2>&1" | sudo crontab -u developer -
+        
+        log "Auto-update cron job configured (runs daily at 2 AM)"
+    else
+        log "Auto-update is disabled"
+    fi
+}
+
 # Function to initialize VS Code
 init_vscode() {
     log "Initializing VS Code..."
     
-    # Create VS Code directories
-    mkdir -p /home/developer/.vscode-server
+    # Create VS Code directories in /config
+    mkdir -p "$VSCODE_USER_DATA_DIR"
+    mkdir -p "$VSCODE_EXTENSIONS_DIR"
+    mkdir -p "$VSCODE_SERVER_DATA_DIR"
     
+    log "VS Code directories created:"
+    log "  User data: $VSCODE_USER_DATA_DIR"
+    log "  Extensions: $VSCODE_EXTENSIONS_DIR"
+    log "  Server data: $VSCODE_SERVER_DATA_DIR"
     log "VS Code initialized successfully"
 }
 
@@ -119,6 +154,9 @@ main() {
     
     # Install extra packages if specified
     install_extra_packages
+    
+    # Setup auto-update if enabled
+    setup_auto_update
     
     # Initialize VS Code
     init_vscode

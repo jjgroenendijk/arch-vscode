@@ -1,12 +1,12 @@
 # Arch Linux VS Code Docker Container
 
-A Docker container that provides an Arch Linux development environment with VS Code, accessible via web browser using the official VS Code tunnel functionality.
+A Docker container that provides an Arch Linux development environment with VS Code, accessible via web browser using VS Code's serve-web functionality.
 
 ## Features
 
 - **Base**: Official Arch Linux (`archlinux/archlinux:latest`)
-- **VS Code**: Code OSS from official Arch repositories
-- **Web Access**: VS Code tunnel for browser-based development
+- **VS Code**: Microsoft VS Code from AUR
+- **Web Access**: VS Code serve-web for direct localhost browser access
 - **Multi-Platform**: Supports both AMD64 and ARM64 architectures
 - **Volume Mapping**: Mount your project directory for persistent development
 - **User Permissions**: Configurable PUID/PGID for proper file permissions
@@ -17,7 +17,7 @@ A Docker container that provides an Arch Linux development environment with VS C
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/jjgroenendijk/arch-vscode.git
 cd arch-vscode
 
 # Build the image
@@ -46,7 +46,6 @@ docker-compose down
 
 - `PUID=1000` - User ID for file permissions
 - `PGID=1000` - Group ID for file permissions  
-- `VSCODE_TUNNEL_NAME=arch-vscode-tunnel` - Custom tunnel name
 - `WORKSPACE_DIR=/workspace` - Workspace directory path
 
 ### Volume Mapping
@@ -61,27 +60,19 @@ docker run -v /path/to/your/project:/workspace arch-vscode
 
 ### Local Development
 - `arch-vscode` - Full development environment with build tools
-- `arch-vscode-simple` - Minimal VS Code environment  
-- `arch-vscode-debug` - Debug version for testing
 
 ### Published Images (Coming Soon)
-- `username/arch-vscode:latest` - Latest stable release
-- `ghcr.io/username/arch-vscode:latest` - GitHub Container Registry
+- `jjgroenendijk/arch-vscode:latest` - Latest stable release
+- `ghcr.io/jjgroenendijk/arch-vscode:latest` - GitHub Container Registry
 
 ## VS Code Access
 
-### Method 1: VS Code Tunnel (Recommended)
-1. Start the container
-2. Check container logs for tunnel URL: `docker logs <container-name>`
-3. Follow authentication prompts
-4. Access VS Code via the provided tunnel URL
-
-### Method 2: Local Port Forwarding
+### Direct Browser Access
 ```bash
 # Run with port mapping
 docker run -p 8080:8080 arch-vscode
 
-# Access at http://localhost:8080 (if tunnel supports local access)
+# Access at http://localhost:8080 (no authentication required)
 ```
 
 ## Development Workflow
@@ -92,9 +83,8 @@ docker run -p 8080:8080 arch-vscode
    ```
 
 2. **Access VS Code**:
-   - Check logs for tunnel URL
-   - Authenticate with Microsoft/GitHub account
-   - Open in browser
+   - Open http://localhost:8080 in your browser
+   - No authentication required
 
 3. **Mount Project**:
    ```bash
@@ -105,6 +95,38 @@ docker run -p 8080:8080 arch-vscode
 4. **Install Extensions**:
    - Use VS Code extension marketplace
    - Extensions are persisted in volume
+
+## Data Persistence
+
+VS Code data is automatically persisted in the `/config` directory, providing complete persistence across container restarts:
+
+### Directory Structure
+```
+/config/
+├── user-data/          # User settings, preferences, and workspace state
+├── extensions/         # Installed VS Code extensions
+└── server-data/        # VS Code server runtime data
+```
+
+### What's Persisted
+- **Extensions**: All installed extensions remain after container restart
+- **User Settings**: Preferences, themes, and configurations
+- **Workspace State**: Recently opened files and workspace-specific settings
+- **Extension Data**: Extension-specific storage and state
+
+### Volume Configuration
+The current `docker-compose.yml` automatically handles persistence:
+
+```yaml
+volumes:
+  - vscode-config:/config    # Single volume for all VS Code data
+```
+
+### Benefits
+- **Complete Persistence**: No data loss on container recreation
+- **User-Independent**: Data location doesn't depend on username
+- **Clean Separation**: VS Code data separate from workspace files
+- **Easy Backup**: Single directory contains all persistence data
 
 ## Architecture
 
@@ -137,11 +159,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t arch-vscode .
 
 ### Development Builds
 ```bash
-# Simple version (minimal packages)
-docker build -f Dockerfile.simple -t arch-vscode-simple .
-
-# Debug version (for testing)
-docker build -f Dockerfile.debug -t arch-vscode-debug .
+# Standard build (only variant currently available)
+docker build -t arch-vscode .
 ```
 
 ## Troubleshooting
@@ -157,10 +176,10 @@ docker build -f Dockerfile.debug -t arch-vscode-debug .
 - Set correct PUID/PGID: `docker run -e PUID=$(id -u) -e PGID=$(id -g) arch-vscode`
 - Check volume mount permissions
 
-**VS Code tunnel not working**:
-- Ensure internet connectivity
-- Check Microsoft/GitHub account authentication
-- Verify tunnel binary exists: `docker run arch-vscode code --version`
+**VS Code web interface not accessible**:
+- Ensure port 8080 is not blocked
+- Check container logs for errors: `docker logs <container-name>`
+- Verify VS Code is running: `docker run arch-vscode code --version`
 
 **Platform warnings**:
 - Use `--platform` flag: `docker run --platform linux/amd64 arch-vscode`
@@ -188,13 +207,12 @@ docker run arch-vscode pacman -Q | grep code
 ## Development Notes
 
 ### Package Sources
-- **Code OSS**: Official Arch Linux repositories (`pacman -S code`)
+- **Microsoft VS Code**: AUR package (`visual-studio-code-bin`)
 - **Dependencies**: Base development tools, Git, build essentials
 - **Container**: Official Arch Linux image
 
 ### Known Limitations
-- Code OSS may have limited tunnel functionality compared to Microsoft VS Code
-- Some proprietary Microsoft features may not be available
+- Microsoft VS Code installed from AUR (not official Microsoft build)
 - ARM64 images run via emulation on x86_64 hosts
 
 ### Future Enhancements

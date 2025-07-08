@@ -5,19 +5,22 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
-      - VSCODE_TUNNEL_NAME=${VSCODE_TUNNEL_NAME:-arch-vscode-tunnel}
       - WORKSPACE_DIR=/workspace
+      - VSCODE_USER_DATA_DIR=/config/user-data
+      - VSCODE_EXTENSIONS_DIR=/config/extensions
+      - VSCODE_SERVER_DATA_DIR=/config/server-data
+      - AUTO_UPDATE=${AUTO_UPDATE:-false}
+      - TZ=${TZ:-UTC}
     volumes:
       - ./:/workspace
-      - vscode-data:/home/developer/.vscode
-      - vscode-extensions:/home/developer/.vscode-server
+      - vscode-config:/config
     ports:
       - "8080:8080"
     restart: unless-stopped
     stdin_open: true
     tty: true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -26,27 +29,25 @@ services:
       - arch-vscode-net
 
   # Optional: Add a reverse proxy for custom domain access
-  nginx:
-    image: nginx:alpine
-    container_name: arch-vscode-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - arch-vscode
-    restart: unless-stopped
-    networks:
-      - arch-vscode-net
-    profiles:
-      - proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: arch-vscode-proxy
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - arch-vscode
+  #   restart: unless-stopped
+  #   networks:
+  #     - arch-vscode-net
+  #   profiles:
+  #     - proxy
 
 volumes:
-  vscode-data:
-    driver: local
-  vscode-extensions:
+  vscode-config:
     driver: local
 
 networks:

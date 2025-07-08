@@ -3,6 +3,7 @@ FROM archlinux/archlinux:latest
 
 # Build arguments for flexibility
 ARG ENTRYPOINT_SCRIPT=entrypoint.sh
+ARG TARGETARCH=amd64
 
 # Set environment for non-interactive installation
 ENV LANG=C.UTF-8
@@ -15,6 +16,18 @@ RUN pacman -Syu --noconfirm && \
         curl \
         wget \
         sudo \
+        cronie \
+        nss \
+        gtk3 \
+        alsa-lib \
+        xorg-server-xvfb \
+        libxrandr \
+        libxss \
+        libdrm \
+        libxcomposite \
+        libxdamage \
+        libxfixes \
+        ca-certificates \
         && \
     pacman -Scc --noconfirm
 
@@ -22,43 +35,56 @@ RUN pacman -Syu --noconfirm && \
 RUN useradd -m -s /bin/bash -G wheel developer && \
     echo "developer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Install AUR helper and Microsoft VS Code
+# Download and install VS Code directly from Microsoft
 USER developer
 WORKDIR /home/developer
-RUN git clone https://aur.archlinux.org/yay.git && \
-    cd yay && \
-    makepkg -si --noconfirm && \
-    cd .. && \
-    rm -rf yay && \
-    yay -S --noconfirm visual-studio-code-bin
+RUN case ${TARGETARCH} in \
+        amd64) ARCH=x64 ;; \
+        arm64) ARCH=arm64 ;; \
+        arm) ARCH=arm ;; \
+        *) ARCH=x64 ;; \
+    esac && \
+    mkdir -p /tmp/vscode && \
+    curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/latest/linux-${ARCH}/stable" && \
+    sudo mkdir -p /opt/vscode && \
+    sudo tar -xzf /tmp/vscode/vscode.tar.gz -C /opt/vscode --strip-components=1 && \
+    sudo ln -s /opt/vscode/bin/code /usr/local/bin/code && \
+    rm -rf /tmp/vscode
 
 # Switch back to root for system configuration
 USER root
 
-# Create workspace directory
-RUN mkdir -p /workspace && \
-    chown developer:developer /workspace
+# Create workspace and config directories
+RUN mkdir -p /workspace /config && \
+    chown developer:developer /workspace /config
 
 # Set up environment variables
 ENV PUID=1000 \
     PGID=1000 \
     WORKSPACE_DIR=/workspace \
-    EXTRA_PACKAGES=""
+    VSCODE_USER_DATA_DIR=/config/user-data \
+    VSCODE_EXTENSIONS_DIR=/config/extensions \
+    VSCODE_SERVER_DATA_DIR=/config/server-data \
+    EXTRA_PACKAGES="" \
+    AUTO_UPDATE=false \
+    TZ=UTC
 
-# Copy entrypoint script
+# Copy entrypoint script and auto-update script
 COPY scripts/${ENTRYPOINT_SCRIPT} /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY scripts/auto-update.sh /usr/local/bin/auto-update.sh
+COPY scripts/start-vscode.sh /usr/local/bin/start-vscode.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/auto-update.sh /usr/local/bin/start-vscode.sh
 
 # Add OCI labels for container metadata
 LABEL org.opencontainers.image.title="Arch Linux VS Code Container" \
       org.opencontainers.image.description="Arch Linux container with VS Code accessible via web interface" \
-      org.opencontainers.image.source="https://github.com/user/arch-vscode" \
+      org.opencontainers.image.source="https://github.com/jjgroenendijk/arch-vscode" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="Custom Build"
+      org.opencontainers.image.vendor="jjgroenendijk"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/healthz || exit 1
+    CMD curl -f http://localhost:8080/ || exit 1
 
 # Expose port for VS Code serve-web
 EXPOSE 8080
@@ -72,5 +98,5 @@ USER developer
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
-# Default command
-CMD ["code", "serve-web", "--host", "0.0.0.0", "--port", "8080", "--without-connection-token"]
+# Default command using wrapper script
+CMD ["/usr/local/bin/start-vscode.sh"]
