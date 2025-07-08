@@ -5,7 +5,7 @@ A Docker container that provides an Arch Linux development environment with VS C
 ## Features
 
 - **Base**: Official Arch Linux (`archlinux/archlinux:latest`)
-- **VS Code**: Microsoft VS Code from AUR
+- **VS Code**: Microsoft VS Code direct download from official servers
 - **Web Access**: VS Code serve-web for direct localhost browser access
 - **Multi-Platform**: Supports both AMD64 and ARM64 architectures
 - **Volume Mapping**: Mount your project directory for persistent development
@@ -207,12 +207,11 @@ docker run arch-vscode pacman -Q | grep code
 ## Development Notes
 
 ### Package Sources
-- **Microsoft VS Code**: AUR package (`visual-studio-code-bin`)
-- **Dependencies**: Base development tools, Git, build essentials
+- **Microsoft VS Code**: Direct download from official Microsoft servers
+- **Dependencies**: Essential VS Code libraries (libsecret, libxkbfile, ripgrep) plus base development tools
 - **Container**: Official Arch Linux image
 
 ### Known Limitations
-- Microsoft VS Code installed from AUR (not official Microsoft build)
 - ARM64 images run via emulation on x86_64 hosts
 
 ### Future Enhancements

@@ -21,12 +21,10 @@ RUN pacman -Syu --noconfirm && \
         gtk3 \
         alsa-lib \
         xorg-server-xvfb \
-        libxrandr \
-        libxss \
-        libdrm \
-        libxcomposite \
-        libxdamage \
-        libxfixes \
+        libx11 \
+        libsecret \
+        libxkbfile \
+        ripgrep \
         ca-certificates \
         ca-certificates-mozilla \
         openssl \
