@@ -46,9 +46,6 @@ jobs:
             - 'README.md'
 
   build-and-push:
-    needs: changes
-    # Run if: changes detected OR scheduled run OR manual run OR pull request
-    if: always() && (needs.changes.outputs.docker == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       contents: read
