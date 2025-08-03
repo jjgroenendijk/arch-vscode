@@ -38,8 +38,15 @@ RUN pacman -Syu --noconfirm --quiet && \
 RUN useradd -m -s /bin/bash -G wheel developer && \
     echo "developer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Download and install VS Code directly from Microsoft
+# Install yay (AUR helper) as developer user
 USER developer
+RUN git clone https://aur.archlinux.org/yay.git /tmp/yay && \
+    cd /tmp/yay && \
+    makepkg -si --noconfirm && \
+    cd / && \
+    rm -rf /tmp/yay
+
+# Download and install VS Code directly from Microsoft
 WORKDIR /home/developer
 RUN case ${TARGETARCH} in \
         amd64) ARCH=x64 ;; \
