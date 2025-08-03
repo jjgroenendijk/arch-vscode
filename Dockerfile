@@ -31,6 +31,7 @@ RUN pacman -Syu --noconfirm --quiet > /var/log/pacman-update.log 2>&1 && \
         ca-certificates \
         ca-certificates-mozilla \
         openssl \
+        net-tools \
         > /var/log/pacman-install.log 2>&1 && \
     pacman -Scc --noconfirm --quiet > /var/log/pacman-cleanup.log 2>&1
 
@@ -38,11 +39,11 @@ RUN pacman -Syu --noconfirm --quiet > /var/log/pacman-update.log 2>&1 && \
 RUN useradd -m -s /bin/bash -G wheel developer && \
     echo "developer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Install yay (AUR helper) as developer user (logs in /var/log/yay-*.log)
+# Install yay (AUR helper) as developer user (logs in home directory)
 USER developer
-RUN git clone https://aur.archlinux.org/yay.git /tmp/yay > /var/log/yay-clone.log 2>&1 && \
+RUN git clone https://aur.archlinux.org/yay.git /tmp/yay > /dev/null 2>&1 && \
     cd /tmp/yay && \
-    makepkg -si --noconfirm > /var/log/yay-build.log 2>&1 && \
+    makepkg -si --noconfirm > /dev/null 2>&1 && \
     cd / && \
     rm -rf /tmp/yay
 
