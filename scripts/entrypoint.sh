@@ -20,26 +20,26 @@ setup_user() {
     log "Setting up user permissions..."
     
     # Get current user info
-    CURRENT_UID=$(id -u developer)
-    CURRENT_GID=$(id -g developer)
+    CURRENT_UID=$(id -u developer 2>/dev/null || echo "1000")
+    CURRENT_GID=$(id -g developer 2>/dev/null || echo "1000")
     
     # If PUID/PGID are different from current, we need to adjust
     if [ "$PUID" != "$CURRENT_UID" ] || [ "$PGID" != "$CURRENT_GID" ]; then
         log "Adjusting user permissions: PUID=$PUID, PGID=$PGID"
         
         # Create group if it doesn't exist
-        if ! getent group "$PGID" >/dev/null; then
-            sudo groupadd -g "$PGID" devgroup
+        if ! getent group "$PGID" >/dev/null 2>&1; then
+            groupadd -g "$PGID" devgroup || log "Warning: Could not create group with GID $PGID"
         fi
         
         # Modify user
-        sudo usermod -u "$PUID" -g "$PGID" developer
+        usermod -u "$PUID" -g "$PGID" developer || log "Warning: Could not modify user developer"
         
         # Fix ownership of home directory and directories
-        sudo chown -R "$PUID:$PGID" /home/developer /workspace /config
+        chown -R "$PUID:$PGID" /home/developer /workspace /config 2>/dev/null || log "Warning: Could not change ownership of some directories"
     else
         # Ensure correct ownership even if UIDs match
-        sudo chown -R "$PUID:$PGID" /workspace /config
+        chown -R "$PUID:$PGID" /workspace /config 2>/dev/null || log "Warning: Could not change ownership of some directories"
     fi
     
     log "User permissions configured successfully"
@@ -71,8 +71,11 @@ setup_auto_update() {
     if [ "$AUTO_UPDATE" = "true" ]; then
         log "Auto-update is enabled, setting up cron job..."
         
-        # Start cron daemon
-        sudo service cronie start
+        # Start cron daemon (works better in containers than systemd service)
+        if ! pgrep -x "crond" > /dev/null; then
+            log "Starting cron daemon..."
+            sudo /usr/bin/crond
+        fi
         
         # Create cron job to run auto-update every 24 hours at 2 AM
         echo "0 2 * * * /usr/local/bin/auto-update.sh >> /var/log/auto-update.log 2>&1" | sudo crontab -u developer -
@@ -121,13 +124,19 @@ main() {
         
         # Switch to developer user and re-run script
         log "Switching to developer user..."
-        exec sudo -u developer -E "$0" "$@"
+        exec sudo -u developer -E -H "$0" "$@"
     fi
     
     # Now running as developer user
-    log "Running as user: $(whoami)"
+    log "Running as user: $(whoami) (UID: $(id -u), GID: $(id -g))"
     log "Working directory: $(pwd)"
     log "Workspace directory: $WORKSPACE_DIR"
+    log "Home directory: $HOME"
+    
+    # Ensure we're in the right directory
+    cd "$WORKSPACE_DIR" || {
+        log "Warning: Could not change to workspace directory $WORKSPACE_DIR, using current directory"
+    }
     
     # Install extra packages if specified
     install_extra_packages

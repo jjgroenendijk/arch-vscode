@@ -106,8 +106,5 @@ EXPOSE 8080
 # Set working directory
 WORKDIR /workspace
 
-# Switch to non-root user
-USER developer
-
-# Set entrypoint
+# Set entrypoint (container will start as root, entrypoint will switch to developer user)
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
