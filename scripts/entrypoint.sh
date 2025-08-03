@@ -93,6 +93,32 @@ setup_auto_update() {
     fi
 }
 
+# Function to setup VS Code configuration
+setup_vscode_config() {
+    log "Setting up VS Code configuration..."
+    
+    # Create argv.json to enable basic password store for persistent authentication
+    local argv_file="$VSCODE_USER_DATA_DIR/argv.json"
+    local argv_dir=$(dirname "$argv_file")
+    
+    # Ensure user data directory exists
+    if [ ! -d "$argv_dir" ]; then
+        mkdir -p "$argv_dir"
+        log "Created VS Code user data directory: $argv_dir"
+    fi
+    
+    # Create argv.json with basic password store configuration
+    cat > "$argv_file" << 'EOF'
+{
+    "password-store": "basic",
+    "enable-crash-reporter": false
+}
+EOF
+    
+    log "Created argv.json with basic password store configuration"
+    log "This enables persistent authentication across container restarts"
+}
+
 # Function to start VS Code serve-web
 start_vscode() {
     log "Starting VS Code serve-web..."
@@ -109,6 +135,13 @@ start_vscode() {
     VSCODE_SERVER_DATA_DIR=${VSCODE_SERVER_DATA_DIR:-/config/server-data}
     VSCODE_USER_DATA_DIR=${VSCODE_USER_DATA_DIR:-/config/user-data}
     VSCODE_EXTENSIONS_DIR=${VSCODE_EXTENSIONS_DIR:-/config/extensions}
+    
+    # Setup VS Code configuration for persistent authentication
+    setup_vscode_config
+    
+    # Set environment variables for VS Code data directories
+    export VSCODE_CLI_DATA_DIR="$VSCODE_CLI_DATA_DIR"
+    export VSCODE_EXTENSIONS="$VSCODE_EXTENSIONS_DIR"
     
     # Change to workspace directory
     cd "$WORKSPACE_DIR"
@@ -150,11 +183,8 @@ start_vscode() {
         VSCODE_ARGS="$VSCODE_ARGS --accept-server-license-terms"
     fi
     
-    # Handle data directories
+    # Handle data directories (only server-data-dir is supported in serve-web mode)
     VSCODE_ARGS="$VSCODE_ARGS --server-data-dir $VSCODE_SERVER_DATA_DIR"
-    VSCODE_ARGS="$VSCODE_ARGS --user-data-dir $VSCODE_USER_DATA_DIR"
-    VSCODE_ARGS="$VSCODE_ARGS --extensions-dir $VSCODE_EXTENSIONS_DIR"
-    VSCODE_ARGS="$VSCODE_ARGS --cli-data-dir $VSCODE_CLI_DATA_DIR"
     
     # Handle verbose logging
     if [ "$VSCODE_VERBOSE" = "true" ]; then
