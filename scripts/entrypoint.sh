@@ -97,6 +97,19 @@ setup_auto_update() {
 start_vscode() {
     log "Starting VS Code serve-web..."
     
+    # Set default values for VS Code configuration
+    VSCODE_HOST=${VSCODE_HOST:-0.0.0.0}
+    VSCODE_PORT=${VSCODE_PORT:-8080}
+    VSCODE_CONNECTION_TOKEN=${VSCODE_CONNECTION_TOKEN:-""}
+    VSCODE_SOCKET_PATH=${VSCODE_SOCKET_PATH:-""}
+    VSCODE_ACCEPT_LICENSE=${VSCODE_ACCEPT_LICENSE:-true}
+    VSCODE_CLI_DATA_DIR=${VSCODE_CLI_DATA_DIR:-/config/cli-data}
+    VSCODE_VERBOSE=${VSCODE_VERBOSE:-false}
+    VSCODE_LOG_LEVEL=${VSCODE_LOG_LEVEL:-info}
+    VSCODE_SERVER_DATA_DIR=${VSCODE_SERVER_DATA_DIR:-/config/server-data}
+    VSCODE_USER_DATA_DIR=${VSCODE_USER_DATA_DIR:-/config/user-data}
+    VSCODE_EXTENSIONS_DIR=${VSCODE_EXTENSIONS_DIR:-/config/extensions}
+    
     # Change to workspace directory
     cd "$WORKSPACE_DIR"
     
@@ -106,22 +119,54 @@ start_vscode() {
         exit 1
     fi
     
-    # Check if port 8080 is available
-    if netstat -ln 2>/dev/null | grep -q ":8080 "; then
-        log "WARNING: Port 8080 appears to be in use"
+    # Check if port is available
+    if netstat -ln 2>/dev/null | grep -q ":$VSCODE_PORT "; then
+        log "WARNING: Port $VSCODE_PORT appears to be in use"
     fi
     
     log "Current user: $(whoami), UID: $(id -u), GID: $(id -g)"
     log "Current directory: $(pwd)"
     log "VS Code binary: $(which code || echo 'not found in PATH')"
     
-    # Start VS Code serve-web with custom data directories
-    log "Executing: code serve-web --host 0.0.0.0 --port 8080 --without-connection-token --server-data-dir /config/server-data"
-    exec code serve-web \
-        --host 0.0.0.0 \
-        --port 8080 \
-        --without-connection-token \
-        --server-data-dir /config/server-data
+    # Build command arguments
+    VSCODE_ARGS="serve-web"
+    VSCODE_ARGS="$VSCODE_ARGS --host $VSCODE_HOST"
+    VSCODE_ARGS="$VSCODE_ARGS --port $VSCODE_PORT"
+    
+    # Handle connection token
+    if [ -n "$VSCODE_CONNECTION_TOKEN" ]; then
+        VSCODE_ARGS="$VSCODE_ARGS --connection-token $VSCODE_CONNECTION_TOKEN"
+    else
+        VSCODE_ARGS="$VSCODE_ARGS --without-connection-token"
+    fi
+    
+    # Handle socket path
+    if [ -n "$VSCODE_SOCKET_PATH" ]; then
+        VSCODE_ARGS="$VSCODE_ARGS --socket-path $VSCODE_SOCKET_PATH"
+    fi
+    
+    # Handle license acceptance
+    if [ "$VSCODE_ACCEPT_LICENSE" = "true" ]; then
+        VSCODE_ARGS="$VSCODE_ARGS --accept-server-license-terms"
+    fi
+    
+    # Handle data directories
+    VSCODE_ARGS="$VSCODE_ARGS --server-data-dir $VSCODE_SERVER_DATA_DIR"
+    VSCODE_ARGS="$VSCODE_ARGS --user-data-dir $VSCODE_USER_DATA_DIR"
+    VSCODE_ARGS="$VSCODE_ARGS --extensions-dir $VSCODE_EXTENSIONS_DIR"
+    VSCODE_ARGS="$VSCODE_ARGS --cli-data-dir $VSCODE_CLI_DATA_DIR"
+    
+    # Handle verbose logging
+    if [ "$VSCODE_VERBOSE" = "true" ]; then
+        VSCODE_ARGS="$VSCODE_ARGS --verbose"
+    fi
+    
+    # Handle log level
+    VSCODE_ARGS="$VSCODE_ARGS --log $VSCODE_LOG_LEVEL"
+    
+    # Start VS Code serve-web with configured options
+    log "Executing: code $VSCODE_ARGS"
+    exec code $VSCODE_ARGS
 }
 
 # Function to handle shutdown

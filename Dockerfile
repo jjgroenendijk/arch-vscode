@@ -66,7 +66,7 @@ RUN case ${TARGETARCH} in \
 USER root
 
 # Create workspace and config directories with subdirectories
-RUN mkdir -p /workspace /config/user-data /config/extensions /config/server-data && \
+RUN mkdir -p /workspace /config/user-data /config/extensions /config/server-data /config/cli-data && \
     chown -R developer:developer /workspace /config
 
 # Set up environment variables
@@ -76,6 +76,14 @@ ENV PUID=1000 \
     VSCODE_USER_DATA_DIR=/config/user-data \
     VSCODE_EXTENSIONS_DIR=/config/extensions \
     VSCODE_SERVER_DATA_DIR=/config/server-data \
+    VSCODE_HOST=0.0.0.0 \
+    VSCODE_PORT=8080 \
+    VSCODE_CONNECTION_TOKEN="" \
+    VSCODE_SOCKET_PATH="" \
+    VSCODE_ACCEPT_LICENSE=true \
+    VSCODE_CLI_DATA_DIR=/config/cli-data \
+    VSCODE_VERBOSE=false \
+    VSCODE_LOG_LEVEL=info \
     EXTRA_PACKAGES="" \
     AUTO_UPDATE=false \
     TZ=UTC \
