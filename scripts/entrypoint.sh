@@ -95,7 +95,8 @@ start_vscode() {
         --host 0.0.0.0 \
         --port 8080 \
         --without-connection-token \
-        --server-data-dir /config/server-data
+        --server-data-dir /config/server-data \
+        --default-folder /workspace
 }
 
 # Function to handle shutdown
