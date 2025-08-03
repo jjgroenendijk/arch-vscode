@@ -12,7 +12,7 @@ ENV LANG=C.UTF-8
 RUN echo "ParallelDownloads = 5" >> /etc/pacman.conf
 
 # Update system and install base packages
-RUN pacman -Syu --noconfirm --quiet && \
+RUN pacman -Syu --noconfirm --quiet > /dev/null 2>&1 && \
     pacman -S --noconfirm --quiet \
         base-devel \
         git \
@@ -31,8 +31,8 @@ RUN pacman -Syu --noconfirm --quiet && \
         ca-certificates \
         ca-certificates-mozilla \
         openssl \
-        && \
-    pacman -Scc --noconfirm --quiet
+        > /dev/null 2>&1 && \
+    pacman -Scc --noconfirm --quiet > /dev/null 2>&1
 
 # Create non-root user
 RUN useradd -m -s /bin/bash -G wheel developer && \
@@ -40,9 +40,9 @@ RUN useradd -m -s /bin/bash -G wheel developer && \
 
 # Install yay (AUR helper) as developer user
 USER developer
-RUN git clone https://aur.archlinux.org/yay.git /tmp/yay && \
+RUN git clone https://aur.archlinux.org/yay.git /tmp/yay > /dev/null 2>&1 && \
     cd /tmp/yay && \
-    makepkg -si --noconfirm && \
+    makepkg -si --noconfirm > /dev/null 2>&1 && \
     cd / && \
     rm -rf /tmp/yay
 
