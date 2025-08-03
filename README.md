@@ -42,6 +42,10 @@ services:
       - VSCODE_USER_DATA_DIR=/config/user-data
       - VSCODE_EXTENSIONS_DIR=/config/extensions
       - VSCODE_SERVER_DATA_DIR=/config/server-data
+      - VSCODE_HOST=0.0.0.0
+      - VSCODE_PORT=8080
+      - VSCODE_CONNECTION_TOKEN=""
+      - VSCODE_ACCEPT_LICENSE=true
       - AUTO_UPDATE=${AUTO_UPDATE:-false}
       - TZ=${TZ:-UTC}
     volumes:
@@ -90,6 +94,16 @@ docker-compose down
 - `VSCODE_EXTENSIONS_DIR=/config/extensions` - VS Code extensions directory
 - `VSCODE_SERVER_DATA_DIR=/config/server-data` - VS Code server data directory
 
+#### VS Code Server Configuration
+- `VSCODE_HOST=0.0.0.0` - Host to listen on for VS Code web interface
+- `VSCODE_PORT=8080` - Port to listen on for VS Code web interface
+- `VSCODE_CONNECTION_TOKEN=""` - Connection token for authentication (empty = no auth)
+- `VSCODE_SOCKET_PATH=""` - Socket path for VS Code server (empty = use host/port)
+- `VSCODE_ACCEPT_LICENSE=true` - Automatically accept VS Code server license terms
+- `VSCODE_CLI_DATA_DIR=/config/cli-data` - VS Code CLI data directory
+- `VSCODE_VERBOSE=false` - Enable verbose logging for VS Code server
+- `VSCODE_LOG_LEVEL=info` - Log level (trace, debug, info, warn, error, critical, off)
+
 #### System Configuration
 - `EXTRA_PACKAGES=""` - Additional packages to install via yay (space-separated)
 - `AUTO_UPDATE=false` - Enable automatic system updates every 24 hours
@@ -131,6 +145,34 @@ docker run -p 8080:8080 jjgroenendijk/arch-vscode:latest
 # Access at http://localhost:8080 (no authentication required)
 ```
 
+### Custom VS Code Server Configuration
+
+#### Using Different Port
+```bash
+# Run on port 3000 instead of default 8080
+docker run -p 3000:3000 -e VSCODE_PORT=3000 jjgroenendijk/arch-vscode:latest
+```
+
+#### With Authentication
+```bash
+# Run with connection token for authentication
+docker run -p 8080:8080 -e VSCODE_CONNECTION_TOKEN="mysecrettoken" jjgroenendijk/arch-vscode:latest
+
+# Access at http://localhost:8080/?tkn=mysecrettoken
+```
+
+#### Host on Specific Interface
+```bash
+# Listen only on localhost (more secure)
+docker run -p 127.0.0.1:8080:8080 -e VSCODE_HOST=127.0.0.1 jjgroenendijk/arch-vscode:latest
+```
+
+#### Enable Debug Logging
+```bash
+# Enable verbose logging and set log level to debug
+docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroenendijk/arch-vscode:latest
+```
+
 ## Development Workflow
 
 1. **Start Container**:
@@ -161,7 +203,8 @@ VS Code data is automatically persisted in the `/config` directory, providing co
 /config/
 ├── user-data/          # User settings, preferences, and workspace state
 ├── extensions/         # Installed VS Code extensions
-└── server-data/        # VS Code server runtime data
+├── server-data/        # VS Code server runtime data
+└── cli-data/           # VS Code CLI metadata and configuration
 ```
 
 ### What's Persisted
