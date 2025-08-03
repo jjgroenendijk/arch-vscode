@@ -53,8 +53,15 @@ install_extra_packages() {
         # Split packages by space and install each one
         for package in $EXTRA_PACKAGES; do
             log "Installing package: $package"
-            if ! yay -S --noconfirm "$package"; then
-                log "Warning: Failed to install package: $package"
+            if ! sudo pacman -S --noconfirm "$package" 2>/dev/null; then
+                # Try with yay if pacman fails
+                if command -v yay >/dev/null 2>&1; then
+                    if ! yay -S --noconfirm "$package"; then
+                        log "Warning: Failed to install package: $package"
+                    fi
+                else
+                    log "Warning: Failed to install package: $package (yay not available)"
+                fi
             fi
         done
         
@@ -74,7 +81,7 @@ setup_auto_update() {
         # Start cron daemon (works better in containers than systemd service)
         if ! pgrep -x "crond" > /dev/null; then
             log "Starting cron daemon..."
-            sudo /usr/bin/crond
+            sudo /usr/bin/crond 2>/dev/null || log "Warning: Could not start cron daemon"
         fi
         
         # Create cron job to run auto-update every 24 hours at 2 AM
@@ -93,13 +100,28 @@ start_vscode() {
     # Change to workspace directory
     cd "$WORKSPACE_DIR"
     
+    # Check if VS Code binary exists and is executable
+    if [ ! -x "/opt/vscode/bin/code" ]; then
+        log "ERROR: VS Code binary not found or not executable at /opt/vscode/bin/code"
+        exit 1
+    fi
+    
+    # Check if port 8080 is available
+    if netstat -ln 2>/dev/null | grep -q ":8080 "; then
+        log "WARNING: Port 8080 appears to be in use"
+    fi
+    
+    log "Current user: $(whoami), UID: $(id -u), GID: $(id -g)"
+    log "Current directory: $(pwd)"
+    log "VS Code binary: $(which code || echo 'not found in PATH')"
+    
     # Start VS Code serve-web with custom data directories
+    log "Executing: code serve-web --host 0.0.0.0 --port 8080 --without-connection-token --server-data-dir /config/server-data"
     exec code serve-web \
         --host 0.0.0.0 \
         --port 8080 \
         --without-connection-token \
-        --server-data-dir /config/server-data \
-        --default-folder /workspace
+        --server-data-dir /config/server-data
 }
 
 # Function to handle shutdown
@@ -124,7 +146,7 @@ main() {
         
         # Switch to developer user and re-run script
         log "Switching to developer user..."
-        exec sudo -u developer -E -H "$0" "$@"
+        exec sudo -u developer -E -H /usr/local/bin/entrypoint.sh "$@"
     fi
     
     # Now running as developer user
