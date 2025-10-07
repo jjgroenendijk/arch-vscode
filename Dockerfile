@@ -72,23 +72,20 @@ RUN mkdir -p /tmp/vscode && \
 # Switch back to root for system configuration
 USER root
 
-# Create workspace and config directories with subdirectories
-RUN mkdir -p /workspace /config/user-data /config/extensions /config/server-data /config/cli-data && \
-    chown -R developer:developer /workspace /config
+# Create workspace and prepare default developer config directories
+RUN mkdir -p /workspace /home/developer/.config /home/developer/.local/share && \
+    chown -R developer:developer /workspace /home/developer/.config /home/developer/.local/share
 
 # Set up environment variables
 ENV PUID=1000 \
     PGID=1000 \
     WORKSPACE_DIR=/workspace \
-    VSCODE_USER_DATA_DIR=/config/user-data \
-    VSCODE_EXTENSIONS_DIR=/config/extensions \
-    VSCODE_SERVER_DATA_DIR=/config/server-data \
+    VSCODE_DEFAULT_FOLDER=/workspace \
     VSCODE_HOST=0.0.0.0 \
     VSCODE_PORT=8080 \
     VSCODE_CONNECTION_TOKEN="" \
     VSCODE_SOCKET_PATH="" \
     VSCODE_ACCEPT_LICENSE=true \
-    VSCODE_CLI_DATA_DIR=/config/cli-data \
     VSCODE_VERBOSE=false \
     VSCODE_LOG_LEVEL=info \
     EXTRA_PACKAGES="" \
@@ -97,8 +94,8 @@ ENV PUID=1000 \
     SSL_CERT_DIR=/etc/ssl/certs \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-    XDG_CONFIG_HOME=/config \
-    XDG_DATA_HOME=/config
+    XDG_CONFIG_HOME=/home/developer/.config \
+    XDG_DATA_HOME=/home/developer/.local/share
 
 # Copy entrypoint script and auto-update script
 COPY scripts/${ENTRYPOINT_SCRIPT} /usr/local/bin/entrypoint.sh

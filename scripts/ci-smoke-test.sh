@@ -10,6 +10,8 @@ compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
 }
 
+mkdir -p test-workspace test-home
+
 FAILED=0
 trap 'FAILED=1' ERR
 cleanup() {
