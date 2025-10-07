@@ -8,16 +8,12 @@ services:
       - USERNAME=${USERNAME:-developer}
       - WORKSPACE_DIR=/workspace
       - VSCODE_DEFAULT_FOLDER=${VSCODE_DEFAULT_FOLDER:-/workspace}
-      - VSCODE_USER_DATA_DIR=/config/user-data
-      - VSCODE_EXTENSIONS_DIR=/config/extensions
-      - VSCODE_SERVER_DATA_DIR=/config/server-data
       - EXTRA_PACKAGES=${EXTRA_PACKAGES:-}
       - AUTO_UPDATE=${AUTO_UPDATE:-false}
       - TZ=${TZ:-UTC}
     volumes:
       - ./:/workspace
-      - vscode-config:/config
-      - home-data:/home
+      - ./config:/home/${USERNAME:-developer}/.config/arch-vscode
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -31,9 +27,3 @@ services:
       retries: 3
     networks:
       - arch-vscode-net
-
-volumes:
-  vscode-config:
-    driver: local
-  home-data:
-    driver: local

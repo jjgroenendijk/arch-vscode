@@ -9,7 +9,7 @@ Arch Linux development environment with VS Code accessible via web browser (serv
 - Web interface at localhost:8080
 - Configurable PUID/PGID for file permissions
 - AUR support via yay
-- Persistent volumes for config and home directory
+- Persistent VS Code data stored under the user home directory
 
 ## Quick Start
 
@@ -35,15 +35,10 @@ services:
       - PGID=${PGID:-1000}
     volumes:
       - ./:/workspace
-      - vscode-config:/config
-      - home-data:/home
+      - ./config:/home/${USERNAME:-developer}/.config/arch-vscode
     ports:
       - "8080:8080"
     restart: unless-stopped
-
-volumes:
-  vscode-config:
-  home-data:
 ```
 
 Commands: `docker-compose up -d` / `docker-compose down`
@@ -72,10 +67,11 @@ Copy `.env.example` to `.env` and customize. Key variables:
 - `TZ=UTC` - Timezone
 
 **Directories:**
-- `VSCODE_USER_DATA_DIR=/config/user-data`
-- `VSCODE_EXTENSIONS_DIR=/config/extensions`
-- `VSCODE_SERVER_DATA_DIR=/config/server-data`
-- `VSCODE_CLI_DATA_DIR=/config/cli-data`
+- `VSCODE_CONFIG_ROOT=$HOME/.config/arch-vscode`
+- `VSCODE_USER_DATA_DIR=$VSCODE_CONFIG_ROOT/user-data`
+- `VSCODE_EXTENSIONS_DIR=$VSCODE_CONFIG_ROOT/extensions`
+- `VSCODE_SERVER_DATA_DIR=$VSCODE_CONFIG_ROOT/server-data`
+- `VSCODE_CLI_DATA_DIR=$VSCODE_CONFIG_ROOT/cli-data`
 
 ## Usage Examples
 
@@ -104,7 +100,7 @@ docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroen
 
 ### Directory Structure
 ```
-/config/
+$HOME/.config/arch-vscode/
 ├── user-data/      # Settings, preferences, workspace state
 ├── extensions/     # Installed extensions
 ├── server-data/    # VS Code server runtime
@@ -114,15 +110,14 @@ docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroen
 └── {username}/     # Shell history, configs, SSH keys, installed packages
 ```
 
-Volumes persist extensions, settings, workspace state, installed packages, and user configs across container rebuilds.
+Bind-mount `./config` (or a directory of your choice) to `/home/${USERNAME}/.config/arch-vscode` to persist extensions, settings, and server state across container rebuilds.
 
 ## Container Architecture
 
 ```
 /
 ├── workspace/          # Project files (mount your directory here)
-├── home/{username}/    # Persistent user home
-├── config/             # VS Code data
+├── home/{username}/    # User home (+ VS Code data under .config/arch-vscode)
 └── usr/local/bin/
     └── entrypoint.sh   # Startup script
 ```
