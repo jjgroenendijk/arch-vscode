@@ -7,7 +7,6 @@ Arch Linux development environment with VS Code accessible via web browser (serv
 - Official Arch Linux base (`archlinux:latest`)
 - Microsoft VS Code direct download
 - Web interface at localhost:8080
-- Multi-platform (AMD64, ARM64, ARM32)
 - Configurable PUID/PGID for file permissions
 - AUR support via yay
 - Persistent volumes for config and home directory
