@@ -31,6 +31,7 @@ RUN pacman -Syu --noconfirm --quiet > /var/log/pacman-update.log 2>&1 && \
         ca-certificates \
         ca-certificates-mozilla \
         openssl \
+        openssh \
         net-tools \
         > /var/log/pacman-install.log 2>&1 && \
     pacman -Scc --noconfirm --quiet > /var/log/pacman-cleanup.log 2>&1

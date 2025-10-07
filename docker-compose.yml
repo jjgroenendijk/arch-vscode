@@ -5,15 +5,19 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+      - USERNAME=${USERNAME:-developer}
       - WORKSPACE_DIR=/workspace
+      - VSCODE_DEFAULT_FOLDER=${VSCODE_DEFAULT_FOLDER:-/workspace}
       - VSCODE_USER_DATA_DIR=/config/user-data
       - VSCODE_EXTENSIONS_DIR=/config/extensions
       - VSCODE_SERVER_DATA_DIR=/config/server-data
+      - EXTRA_PACKAGES=${EXTRA_PACKAGES:-}
       - AUTO_UPDATE=${AUTO_UPDATE:-false}
       - TZ=${TZ:-UTC}
     volumes:
       - ./:/workspace
       - vscode-config:/config
+      - home-data:/home
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -28,28 +32,8 @@ services:
     networks:
       - arch-vscode-net
 
-  # Optional: Add a reverse proxy for custom domain access
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: arch-vscode-proxy
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./ssl:/etc/nginx/ssl:ro
-  #   depends_on:
-  #     - arch-vscode
-  #   restart: unless-stopped
-  #   networks:
-  #     - arch-vscode-net
-  #   profiles:
-  #     - proxy
-
 volumes:
   vscode-config:
     driver: local
-
-networks:
-  arch-vscode-net:
-    driver: bridge
+  home-data:
+    driver: local

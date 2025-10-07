@@ -1,0 +1,25 @@
+services:
+  arch-vscode-test:
+    image: arch-vscode:test
+    container_name: arch-vscode-test
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - USERNAME=usert
+      - VSCODE_DEFAULT_FOLDER=/workspace
+      - EXTRA_PACKAGES=npm nodejs
+      - AUTO_UPDATE=false
+      - TZ=UTC
+    volumes:
+      - ./test-workspace:/workspace
+      - test-config:/config
+      - test-home:/home
+    ports:
+      - "9999:8080"
+    restart: "no"
+    stdin_open: true
+    tty: true
+
+volumes:
+  test-config:
+  test-home:
