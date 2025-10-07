@@ -14,7 +14,7 @@ jobs:
     - name: Run hadolint
       uses: hadolint/hadolint-action@v3.1.0
       with:
-        files: Dockerfile
+        dockerfile: Dockerfile
 
     - name: Run shell linter
       uses: Azbagheri/shell-linter@v0.8.0
