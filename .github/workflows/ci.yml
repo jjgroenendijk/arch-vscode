@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+
+    - name: Run shell linter
+      uses: Azbagheri/shell-linter@v0.8.0
+      with:
+        path: scripts
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build test image
+      run: docker build -t arch-vscode:test .
+
+    - name: Run smoke tests
+      run: |
+        scripts/ci-smoke-test.sh

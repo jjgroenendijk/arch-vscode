@@ -1,4 +1,5 @@
 # Consolidated Dockerfile for Arch Linux + VS Code
+# hadolint ignore=DL3007
 FROM archlinux/archlinux:latest
 
 # Build arguments for flexibility
@@ -60,7 +61,8 @@ RUN bash -lc '\
     true'
 
 # Download and install VS Code directly from Microsoft
-WORKDIR /home/developer
+USER root
+WORKDIR /tmp
 RUN case ${TARGETARCH} in \
         amd64) ARCH=x64 ;; \
         arm64) ARCH=arm64 ;; \
@@ -69,9 +71,9 @@ RUN case ${TARGETARCH} in \
     esac && \
     mkdir -p /tmp/vscode && \
     curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/latest/linux-${ARCH}/stable" && \
-    sudo mkdir -p /opt/vscode && \
-    sudo tar -xzf /tmp/vscode/vscode.tar.gz -C /opt/vscode --strip-components=1 && \
-    sudo ln -s /opt/vscode/bin/code /usr/local/bin/code && \
+    mkdir -p /opt/vscode && \
+    tar -xzf /tmp/vscode/vscode.tar.gz -C /opt/vscode --strip-components=1 && \
+    ln -sf /opt/vscode/bin/code /usr/local/bin/code && \
     rm -rf /tmp/vscode
 
 # Switch back to root for system configuration
@@ -127,5 +129,8 @@ EXPOSE 8080
 # Set working directory
 WORKDIR /workspace
 
-# Set entrypoint (container will start as root, entrypoint will switch to developer user)
+# Default to non-root user; entrypoint will escalate as needed for setup
+USER developer
+
+# Set entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
