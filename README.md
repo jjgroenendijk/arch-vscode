@@ -33,6 +33,10 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+      - USERNAME=${USERNAME:-developer}
+      - VSCODE_HOST=${VSCODE_HOST:-0.0.0.0}
+      - VSCODE_PORT=${VSCODE_PORT:-8080}
+      - VSCODE_CONNECTION_TOKEN=${VSCODE_CONNECTION_TOKEN:-}
     volumes:
       - ./:/workspace
       - ./config:/home/${USERNAME:-developer}/.config/arch-vscode
@@ -49,7 +53,7 @@ Before starting the stack for the first time, create a directory on the host to 
 mkdir -p ./config
 ```
 
-You can swap `./config` for any other host path when you bind it to `/home/${USERNAME}/.config/arch-vscode`.
+`./config` is a host directory relative to the compose file. Swap it for any other path when binding to `/home/${USERNAME}/.config/arch-vscode` inside the container.
 
 ## Configuration
 
@@ -66,11 +70,13 @@ Copy `.env.example` to `.env` and customize. Key variables:
 - `VSCODE_HOST=0.0.0.0` - Bind address
 - `VSCODE_PORT=8080` - Listen port
 - `VSCODE_CONNECTION_TOKEN=""` - Auth token (empty=no auth)
+- `VSCODE_SOCKET_PATH=""` - Optional UNIX socket
 - `VSCODE_VERBOSE=false` - Verbose logging
 - `VSCODE_LOG_LEVEL=info` - Log level (trace|debug|info|warn|error|critical|off)
+- `VSCODE_ACCEPT_LICENSE=true` - Auto-accept server license terms
 
 **System:**
-- `EXTRA_PACKAGES=""` - Space-separated packages to install
+- `EXTRA_PACKAGES=""` - Space-separated packages to install at startup
 - `AUTO_UPDATE=false` - Enable auto-updates
 - `TZ=UTC` - Timezone
 
@@ -80,6 +86,7 @@ Copy `.env.example` to `.env` and customize. Key variables:
 - `VSCODE_EXTENSIONS_DIR=$VSCODE_CONFIG_ROOT/extensions`
 - `VSCODE_SERVER_DATA_DIR=$VSCODE_CONFIG_ROOT/server-data`
 - `VSCODE_CLI_DATA_DIR=$VSCODE_CONFIG_ROOT/cli-data`
+- These values default to the paths above when unset; override any of them if you need a different layout.
 
 ## Usage Examples
 
@@ -134,9 +141,9 @@ Container starts as root, entrypoint switches to configured user. UID/GID mappin
 
 ## Features Detail
 
-**SSH Agent:** Automatically started on boot. SSH_AUTH_SOCK available for git operations.
+**SSH Agent:** Entrypoint starts `ssh-agent` when one is not already running so `SSH_AUTH_SOCK` is available for git operations.
 
-**Package Installation:** Use pacman/yay as normal. Packages persist in home volume. EXTRA_PACKAGES auto-installs on start.
+**Package Installation:** Runtime pacman/yay installs modify the container filesystem and are lost when the container is rebuilt. Use `EXTRA_PACKAGES` (reinstalled on each start) or bake dependencies into a custom image for persistence.
 
 **Custom Username:** Set USERNAME env var. Default is "developer". Home persists regardless of username.
 
