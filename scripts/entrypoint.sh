@@ -148,9 +148,19 @@ trap shutdown SIGTERM SIGINT
 main() {
     log "Starting container..."
 
+    if [ "$(id -u)" -ne 0 ] && [ "${ENTRYPOINT_ROOT_DONE:-0}" != "1" ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            log "Elevating privileges for initial setup..."
+            exec sudo -E env ENTRYPOINT_ROOT_DONE=1 /usr/local/bin/entrypoint.sh "$@"
+        else
+            log "sudo not available; continuing without root setup"
+        fi
+    fi
+
     if [ "$(id -u)" -eq 0 ]; then
         setup_user
         install_extra_packages
+        export ENTRYPOINT_ROOT_DONE=1
         if command -v setpriv >/dev/null 2>&1; then
             TARGET_UID=$(id -u "$USERNAME")
             TARGET_GID=$(id -g "$USERNAME")
