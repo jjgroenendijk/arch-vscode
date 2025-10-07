@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install linting tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck hadolint
+
+    - name: Run hadolint
+      run: hadolint Dockerfile
+
+    - name: Run shellcheck
+      run: shellcheck scripts/*.sh
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build test image
+      run: docker build -t arch-vscode:test .
+
+    - name: Run smoke tests
+      run: |
+        scripts/ci-smoke-test.sh

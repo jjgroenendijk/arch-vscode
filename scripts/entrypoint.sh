@@ -45,7 +45,9 @@ setup_user() {
 install_extra_packages() {
     [ -z "$EXTRA_PACKAGES" ] && return
     log "Installing packages: $EXTRA_PACKAGES"
-    for pkg in $EXTRA_PACKAGES; do
+    local -a packages=()
+    read -r -a packages <<< "$EXTRA_PACKAGES"
+    for pkg in "${packages[@]}"; do
         sudo pacman -S --noconfirm "$pkg" 2>/dev/null || \
             yay -S --noconfirm "$pkg" 2>/dev/null || \
             log "Warning: Failed to install $pkg"
@@ -83,16 +85,36 @@ start_vscode() {
 
     cd "$VSCODE_DEFAULT_FOLDER"
 
-    VSCODE_ARGS="serve-web --host ${VSCODE_HOST:-0.0.0.0} --port ${VSCODE_PORT:-8080}"
-    [ -n "$VSCODE_CONNECTION_TOKEN" ] && VSCODE_ARGS="$VSCODE_ARGS --connection-token $VSCODE_CONNECTION_TOKEN" || VSCODE_ARGS="$VSCODE_ARGS --without-connection-token"
-    [ -n "$VSCODE_SOCKET_PATH" ] && VSCODE_ARGS="$VSCODE_ARGS --socket-path $VSCODE_SOCKET_PATH"
-    [ "${VSCODE_ACCEPT_LICENSE:-true}" = "true" ] && VSCODE_ARGS="$VSCODE_ARGS --accept-server-license-terms"
-    VSCODE_ARGS="$VSCODE_ARGS --server-data-dir ${VSCODE_SERVER_DATA_DIR:-/config/server-data}"
-    [ "${VSCODE_VERBOSE:-false}" = "true" ] && VSCODE_ARGS="$VSCODE_ARGS --verbose"
-    VSCODE_ARGS="$VSCODE_ARGS --log ${VSCODE_LOG_LEVEL:-info}"
+    local -a vscode_args=(
+        "serve-web"
+        "--host" "${VSCODE_HOST:-0.0.0.0}"
+        "--port" "${VSCODE_PORT:-8080}"
+    )
 
-    log "Executing: code $VSCODE_ARGS"
-    exec code $VSCODE_ARGS
+    if [ -n "$VSCODE_CONNECTION_TOKEN" ]; then
+        vscode_args+=("--connection-token" "$VSCODE_CONNECTION_TOKEN")
+    else
+        vscode_args+=("--without-connection-token")
+    fi
+
+    if [ -n "${VSCODE_SOCKET_PATH:-}" ]; then
+        vscode_args+=("--socket-path" "$VSCODE_SOCKET_PATH")
+    fi
+
+    if [ "${VSCODE_ACCEPT_LICENSE:-true}" = "true" ]; then
+        vscode_args+=("--accept-server-license-terms")
+    fi
+
+    vscode_args+=("--server-data-dir" "${VSCODE_SERVER_DATA_DIR:-/config/server-data}")
+
+    if [ "${VSCODE_VERBOSE:-false}" = "true" ]; then
+        vscode_args+=("--verbose")
+    fi
+
+    vscode_args+=("--log" "${VSCODE_LOG_LEVEL:-info}")
+
+    log "Executing: code ${vscode_args[*]}"
+    exec code "${vscode_args[@]}"
 }
 
 shutdown() {
