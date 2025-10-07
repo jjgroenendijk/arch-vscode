@@ -39,7 +39,7 @@ setup_user() {
         fi
     fi
 
-    chown -R "$PUID:$PGID" "/home/$USERNAME" /workspace /config 2>/dev/null || true
+    chown -R "$PUID:$PGID" "/home/$USERNAME" /workspace 2>/dev/null || true
 }
 
 install_extra_packages() {
@@ -87,8 +87,13 @@ setup_ssh_agent() {
 }
 
 setup_vscode_config() {
-    mkdir -p "$VSCODE_USER_DATA_DIR"
-    cat > "$VSCODE_USER_DATA_DIR/argv.json" << 'EOF'
+    local argv_path="$VSCODE_USER_DATA_DIR/argv.json"
+
+    if [ -f "$argv_path" ]; then
+        return
+    fi
+
+    cat > "$argv_path" << 'EOF'
 {
     "password-store": "basic",
     "enable-crash-reporter": false
@@ -96,12 +101,39 @@ setup_vscode_config() {
 EOF
 }
 
+configure_vscode_paths() {
+    local home_dir="${HOME:-/home/$USERNAME}"
+
+    export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$home_dir/.config}"
+    export XDG_DATA_HOME="${XDG_DATA_HOME:-$home_dir/.local/share}"
+
+    local config_root="${VSCODE_CONFIG_ROOT:-$XDG_CONFIG_HOME/arch-vscode}"
+    export VSCODE_CONFIG_ROOT="$config_root"
+
+    : "${VSCODE_USER_DATA_DIR:=$config_root/user-data}"
+    : "${VSCODE_EXTENSIONS_DIR:=$config_root/extensions}"
+    : "${VSCODE_SERVER_DATA_DIR:=$config_root/server-data}"
+    : "${VSCODE_CLI_DATA_DIR:=$config_root/cli-data}"
+
+    mkdir -p \
+        "$VSCODE_USER_DATA_DIR" \
+        "$VSCODE_EXTENSIONS_DIR" \
+        "$VSCODE_SERVER_DATA_DIR" \
+        "$VSCODE_CLI_DATA_DIR"
+
+    export \
+        VSCODE_USER_DATA_DIR \
+        VSCODE_EXTENSIONS_DIR \
+        VSCODE_SERVER_DATA_DIR \
+        VSCODE_CLI_DATA_DIR
+}
+
 start_vscode() {
     log "Starting VS Code..."
+    configure_vscode_paths
     setup_vscode_config
 
-    export VSCODE_CLI_DATA_DIR="${VSCODE_CLI_DATA_DIR:-/config/cli-data}"
-    export VSCODE_EXTENSIONS="${VSCODE_EXTENSIONS_DIR:-/config/extensions}"
+    export VSCODE_EXTENSIONS="$VSCODE_EXTENSIONS_DIR"
 
     cd "$VSCODE_DEFAULT_FOLDER"
 
@@ -125,7 +157,7 @@ start_vscode() {
         vscode_args+=("--accept-server-license-terms")
     fi
 
-    vscode_args+=("--server-data-dir" "${VSCODE_SERVER_DATA_DIR:-/config/server-data}")
+    vscode_args+=("--server-data-dir" "$VSCODE_SERVER_DATA_DIR")
 
     if [ "${VSCODE_VERBOSE:-false}" = "true" ]; then
         vscode_args+=("--verbose")

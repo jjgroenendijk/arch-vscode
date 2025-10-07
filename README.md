@@ -9,7 +9,7 @@ Arch Linux development environment with VS Code accessible via web browser (serv
 - Web interface at localhost:8080
 - Configurable PUID/PGID for file permissions
 - AUR support via yay
-- Persistent volumes for config and home directory
+- Persistent VS Code data stored under the user home directory
 
 ## Quick Start
 
@@ -33,20 +33,27 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+      - USERNAME=${USERNAME:-developer}
+      - VSCODE_HOST=${VSCODE_HOST:-0.0.0.0}
+      - VSCODE_PORT=${VSCODE_PORT:-8080}
+      - VSCODE_CONNECTION_TOKEN=${VSCODE_CONNECTION_TOKEN:-}
     volumes:
       - ./:/workspace
-      - vscode-config:/config
-      - home-data:/home
+      - ./home:/home/${USERNAME:-developer}
     ports:
       - "8080:8080"
     restart: unless-stopped
-
-volumes:
-  vscode-config:
-  home-data:
 ```
 
 Commands: `docker-compose up -d` / `docker-compose down`
+
+Before starting the stack for the first time, create a directory on the host to hold the VS Code data and home directory contents:
+
+```bash
+mkdir -p ./home
+```
+
+`./home` is a host directory relative to the compose file. Swap it for any other path when binding to `/home/${USERNAME}` inside the container.
 
 ## Configuration
 
@@ -63,19 +70,23 @@ Copy `.env.example` to `.env` and customize. Key variables:
 - `VSCODE_HOST=0.0.0.0` - Bind address
 - `VSCODE_PORT=8080` - Listen port
 - `VSCODE_CONNECTION_TOKEN=""` - Auth token (empty=no auth)
+- `VSCODE_SOCKET_PATH=""` - Optional UNIX socket
 - `VSCODE_VERBOSE=false` - Verbose logging
 - `VSCODE_LOG_LEVEL=info` - Log level (trace|debug|info|warn|error|critical|off)
+- `VSCODE_ACCEPT_LICENSE=true` - Auto-accept server license terms
 
 **System:**
-- `EXTRA_PACKAGES=""` - Space-separated packages to install
+- `EXTRA_PACKAGES=""` - Space-separated packages to install at startup
 - `AUTO_UPDATE=false` - Enable auto-updates
 - `TZ=UTC` - Timezone
 
 **Directories:**
-- `VSCODE_USER_DATA_DIR=/config/user-data`
-- `VSCODE_EXTENSIONS_DIR=/config/extensions`
-- `VSCODE_SERVER_DATA_DIR=/config/server-data`
-- `VSCODE_CLI_DATA_DIR=/config/cli-data`
+- `VSCODE_CONFIG_ROOT=$HOME/.config/arch-vscode`
+- `VSCODE_USER_DATA_DIR=$VSCODE_CONFIG_ROOT/user-data`
+- `VSCODE_EXTENSIONS_DIR=$VSCODE_CONFIG_ROOT/extensions`
+- `VSCODE_SERVER_DATA_DIR=$VSCODE_CONFIG_ROOT/server-data`
+- `VSCODE_CLI_DATA_DIR=$VSCODE_CONFIG_ROOT/cli-data`
+- These values default to the paths above when unset; override any of them if you need a different layout.
 
 ## Usage Examples
 
@@ -104,25 +115,24 @@ docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroen
 
 ### Directory Structure
 ```
-/config/
-├── user-data/      # Settings, preferences, workspace state
-├── extensions/     # Installed extensions
-├── server-data/    # VS Code server runtime
-└── cli-data/       # CLI metadata
-
 /home/
-└── {username}/     # Shell history, configs, SSH keys, installed packages
+└── {username}/
+    ├── .config/arch-vscode/
+    │   ├── user-data/      # Settings, preferences, workspace state
+    │   ├── extensions/     # Installed extensions
+    │   ├── server-data/    # VS Code server runtime
+    │   └── cli-data/       # CLI metadata
+    └── ...                 # Shell history, SSH keys, caches, extra packages
 ```
 
-Volumes persist extensions, settings, workspace state, installed packages, and user configs across container rebuilds.
+Bind-mount `./home` (or a directory of your choice) to `/home/${USERNAME}` to persist the VS Code data, shell history, and any other files you place in the home directory.
 
 ## Container Architecture
 
 ```
 /
 ├── workspace/          # Project files (mount your directory here)
-├── home/{username}/    # Persistent user home
-├── config/             # VS Code data
+├── home/{username}/    # User home (+ VS Code data under .config/arch-vscode)
 └── usr/local/bin/
     └── entrypoint.sh   # Startup script
 ```
@@ -131,9 +141,9 @@ Container starts as root, entrypoint switches to configured user. UID/GID mappin
 
 ## Features Detail
 
-**SSH Agent:** Automatically started on boot. SSH_AUTH_SOCK available for git operations.
+**SSH Agent:** Entrypoint starts `ssh-agent` when one is not already running so `SSH_AUTH_SOCK` is available for git operations.
 
-**Package Installation:** Use pacman/yay as normal. Packages persist in home volume. EXTRA_PACKAGES auto-installs on start.
+**Package Installation:** Runtime pacman/yay installs modify the container filesystem and are lost when the container is rebuilt. Use `EXTRA_PACKAGES` (reinstalled on each start) or bake dependencies into a custom image for persistence.
 
 **Custom Username:** Set USERNAME env var. Default is "developer". Home persists regardless of username.
 
