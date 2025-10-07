@@ -42,11 +42,22 @@ RUN useradd -m -s /bin/bash -G wheel developer && \
 
 # Install yay (AUR helper) as developer user (logs in home directory)
 USER developer
-RUN git clone https://aur.archlinux.org/yay.git /tmp/yay > /dev/null 2>&1 && \
-    cd /tmp/yay && \
-    makepkg -si --noconfirm > /dev/null 2>&1 && \
-    cd / && \
-    rm -rf /tmp/yay
+RUN bash -lc '\
+    log=/tmp/yay-install.log; \
+    : > "$log"; \
+    tmpdir=$(mktemp -d); \
+    if git clone https://aur.archlinux.org/yay.git "$tmpdir" >> "$log" 2>&1; then \
+        cd "$tmpdir"; \
+        if makepkg -si --noconfirm >> "$log" 2>&1; then \
+            echo "yay installed successfully" >> "$log"; \
+        else \
+            echo "Warning: makepkg failed; continuing without yay" >&2; \
+        fi; \
+    else \
+        echo "Warning: Unable to clone yay; continuing without yay" >&2; \
+    fi; \
+    rm -rf "$tmpdir" || true; \
+    true'
 
 # Download and install VS Code directly from Microsoft
 WORKDIR /home/developer
