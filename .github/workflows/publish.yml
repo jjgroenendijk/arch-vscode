@@ -1,12 +1,9 @@
-name: Docker Build and Push
+name: Docker Publish
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   schedule:
-    # Run every Sunday at 2:00 AM UTC
     - cron: '0 2 * * 0'
   workflow_dispatch:
     inputs:
@@ -21,30 +18,6 @@ env:
   IMAGE_NAME: jjgroenendijk/arch-vscode
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    # Skip change detection for scheduled and manual runs
-    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
-    outputs:
-      docker: ${{ steps.changes.outputs.docker }}
-      readme: ${{ steps.changes.outputs.readme }}
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Check for changes
-      uses: dorny/paths-filter@v3
-      id: changes
-      with:
-        filters: |
-          docker:
-            - 'Dockerfile'
-            - 'docker-compose.yml'
-            - 'scripts/**'
-            - '.dockerignore'
-          readme:
-            - 'README.md'
-
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
@@ -52,7 +25,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -84,16 +57,11 @@ jobs:
           ${{ env.REGISTRY_DOCKERHUB }}/${{ env.IMAGE_NAME }}
           ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
         tags: |
-          # For push events
           type=ref,event=branch,enable={{is_default_branch}}
           type=sha,prefix={{branch}}-,enable=${{ github.event_name == 'push' }}
           type=raw,value=latest,enable={{is_default_branch}}
-          # For pull request events
-          type=ref,event=pr,prefix=pr-
-          # For scheduled events (weekly rebuild)
           type=raw,value=latest,enable=${{ github.event_name == 'schedule' }}
           type=raw,value=weekly-{{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
-          # For manual dispatch events
           type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
         labels: |
           org.opencontainers.image.title=Arch Linux VS Code Container
@@ -117,24 +85,20 @@ jobs:
         sbom: true
 
     - name: Generate SBOM attestation
-      if: github.event_name != 'pull_request'
       uses: actions/attest-build-provenance@v1
       with:
         subject-name: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
         subject-digest: ${{ steps.build.outputs.digest }}
 
     - name: Test container startup
-      if: github.event_name != 'pull_request'
       run: |
         echo "Testing container startup..."
         docker run --rm --name test-container -d \
           -p 8080:8080 \
           ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:latest
-        
-        # Wait for container to be ready
+
         sleep 30
-        
-        # Check if container is running
+
         if docker ps | grep -q test-container; then
           echo "Container is running successfully"
         else
@@ -142,13 +106,11 @@ jobs:
           docker logs test-container
           exit 1
         fi
-        
-        # Stop the test container
+
         docker stop test-container
         echo "Container test completed successfully"
 
     - name: Create build summary
-      if: github.event_name != 'pull_request'
       run: |
         if [ "${{ github.event_name }}" == "schedule" ]; then
           echo "## Weekly Docker Image Rebuild" >> $GITHUB_STEP_SUMMARY
@@ -159,7 +121,7 @@ jobs:
           TRIGGER_TEXT="Code changes or manual trigger"
           BASE_IMAGE_TEXT="archlinux:latest"
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Images Published:" >> $GITHUB_STEP_SUMMARY
         echo "- **Docker Hub**: \`docker pull ${{ env.REGISTRY_DOCKERHUB }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
@@ -195,35 +157,3 @@ jobs:
         echo "Cleaning up Docker build cache..."
         docker builder prune -f
         echo "Build cache cleaned"
-
-  update-readme:
-    needs: changes
-    if: always() && needs.changes.outputs.readme == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Update Docker Hub README
-      id: dockerhub-description
-      uses: peter-evans/dockerhub-description@v4
-      continue-on-error: true
-      with:
-        username: ${{ secrets.DOCKER_HUB_USERNAME }}
-        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-        repository: ${{ env.IMAGE_NAME }}
-        short-description: "Arch Linux container with VS Code accessible via web interface"
-        readme-filepath: ./README.md
-
-    - name: Create README update summary
-      run: |
-        echo "## Docker Hub README Update" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ steps.dockerhub-description.outcome }}" == "success" ]; then
-          echo "Docker Hub page has been updated with the latest README.md content" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Docker Hub README update failed, but this is non-critical" >> $GITHUB_STEP_SUMMARY
-          echo "The image was still built and pushed successfully" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "View at: https://hub.docker.com/r/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY

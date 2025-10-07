@@ -44,12 +44,34 @@ setup_user() {
 
 install_extra_packages() {
     [ -z "$EXTRA_PACKAGES" ] && return
+    if [ "${EXTRA_PACKAGES_INSTALLED:-0}" = "1" ]; then
+        return
+    fi
+
     log "Installing packages: $EXTRA_PACKAGES"
-    for pkg in $EXTRA_PACKAGES; do
-        sudo pacman -S --noconfirm "$pkg" 2>/dev/null || \
-            yay -S --noconfirm "$pkg" 2>/dev/null || \
-            log "Warning: Failed to install $pkg"
+    local -a packages=()
+    read -r -a packages <<< "$EXTRA_PACKAGES"
+
+    for pkg in "${packages[@]}"; do
+        if [ "$(id -u)" -eq 0 ]; then
+            if ! pacman -S --noconfirm "$pkg"; then
+                log "Warning: Failed to install $pkg with pacman"
+            fi
+            continue
+        fi
+
+        if sudo pacman -S --noconfirm "$pkg"; then
+            continue
+        fi
+
+        if command -v yay >/dev/null 2>&1 && yay -S --noconfirm "$pkg"; then
+            continue
+        fi
+
+        log "Warning: Failed to install $pkg"
     done
+
+    export EXTRA_PACKAGES_INSTALLED=1
 }
 
 setup_auto_update() {
@@ -83,16 +105,36 @@ start_vscode() {
 
     cd "$VSCODE_DEFAULT_FOLDER"
 
-    VSCODE_ARGS="serve-web --host ${VSCODE_HOST:-0.0.0.0} --port ${VSCODE_PORT:-8080}"
-    [ -n "$VSCODE_CONNECTION_TOKEN" ] && VSCODE_ARGS="$VSCODE_ARGS --connection-token $VSCODE_CONNECTION_TOKEN" || VSCODE_ARGS="$VSCODE_ARGS --without-connection-token"
-    [ -n "$VSCODE_SOCKET_PATH" ] && VSCODE_ARGS="$VSCODE_ARGS --socket-path $VSCODE_SOCKET_PATH"
-    [ "${VSCODE_ACCEPT_LICENSE:-true}" = "true" ] && VSCODE_ARGS="$VSCODE_ARGS --accept-server-license-terms"
-    VSCODE_ARGS="$VSCODE_ARGS --server-data-dir ${VSCODE_SERVER_DATA_DIR:-/config/server-data}"
-    [ "${VSCODE_VERBOSE:-false}" = "true" ] && VSCODE_ARGS="$VSCODE_ARGS --verbose"
-    VSCODE_ARGS="$VSCODE_ARGS --log ${VSCODE_LOG_LEVEL:-info}"
+    local -a vscode_args=(
+        "serve-web"
+        "--host" "${VSCODE_HOST:-0.0.0.0}"
+        "--port" "${VSCODE_PORT:-8080}"
+    )
 
-    log "Executing: code $VSCODE_ARGS"
-    exec code $VSCODE_ARGS
+    if [ -n "$VSCODE_CONNECTION_TOKEN" ]; then
+        vscode_args+=("--connection-token" "$VSCODE_CONNECTION_TOKEN")
+    else
+        vscode_args+=("--without-connection-token")
+    fi
+
+    if [ -n "${VSCODE_SOCKET_PATH:-}" ]; then
+        vscode_args+=("--socket-path" "$VSCODE_SOCKET_PATH")
+    fi
+
+    if [ "${VSCODE_ACCEPT_LICENSE:-true}" = "true" ]; then
+        vscode_args+=("--accept-server-license-terms")
+    fi
+
+    vscode_args+=("--server-data-dir" "${VSCODE_SERVER_DATA_DIR:-/config/server-data}")
+
+    if [ "${VSCODE_VERBOSE:-false}" = "true" ]; then
+        vscode_args+=("--verbose")
+    fi
+
+    vscode_args+=("--log" "${VSCODE_LOG_LEVEL:-info}")
+
+    log "Executing: code ${vscode_args[*]}"
+    exec code "${vscode_args[@]}"
 }
 
 shutdown() {
@@ -106,10 +148,32 @@ trap shutdown SIGTERM SIGINT
 main() {
     log "Starting container..."
 
+    if [ "$(id -u)" -ne 0 ] && [ "${ENTRYPOINT_ROOT_DONE:-0}" != "1" ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            log "Elevating privileges for initial setup..."
+            exec sudo -E env ENTRYPOINT_ROOT_DONE=1 /usr/local/bin/entrypoint.sh "$@"
+        else
+            log "sudo not available; continuing without root setup"
+        fi
+    fi
+
     if [ "$(id -u)" -eq 0 ]; then
         setup_user
-        exec sudo -u "$USERNAME" -E -H /usr/local/bin/entrypoint.sh "$@"
+        install_extra_packages
+        export ENTRYPOINT_ROOT_DONE=1
+        if command -v setpriv >/dev/null 2>&1; then
+            TARGET_UID=$(id -u "$USERNAME")
+            TARGET_GID=$(id -g "$USERNAME")
+            TARGET_GROUPS=$(id -G "$USERNAME" | tr ' ' ',')
+            exec setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --groups="$TARGET_GROUPS" /usr/local/bin/entrypoint.sh "$@"
+        fi
+        log "setpriv not available; refusing to continue as root"
+        exit 1
     fi
+
+    export HOME="/home/$USERNAME"
+    export USER="$USERNAME"
+    export LOGNAME="$USERNAME"
 
     cd "$WORKSPACE_DIR" 2>/dev/null || true
     install_extra_packages

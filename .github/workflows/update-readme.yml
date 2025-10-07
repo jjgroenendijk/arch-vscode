@@ -1,0 +1,42 @@
+name: Docker Hub README
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - README.md
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: jjgroenendijk/arch-vscode
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Update Docker Hub README
+      id: dockerhub-description
+      uses: peter-evans/dockerhub-description@v4
+      continue-on-error: true
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        repository: ${{ env.IMAGE_NAME }}
+        short-description: "Arch Linux container with VS Code accessible via web interface"
+        readme-filepath: ./README.md
+
+    - name: Create README update summary
+      run: |
+        echo "## Docker Hub README Update" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.dockerhub-description.outcome }}" == "success" ]; then
+          echo "Docker Hub page has been updated with the latest README.md content" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Docker Hub README update failed, but this is non-critical" >> $GITHUB_STEP_SUMMARY
+          echo "The image was still built and pushed successfully" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View at: https://hub.docker.com/r/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
