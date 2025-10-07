@@ -44,14 +44,34 @@ setup_user() {
 
 install_extra_packages() {
     [ -z "$EXTRA_PACKAGES" ] && return
+    if [ "${EXTRA_PACKAGES_INSTALLED:-0}" = "1" ]; then
+        return
+    fi
+
     log "Installing packages: $EXTRA_PACKAGES"
     local -a packages=()
     read -r -a packages <<< "$EXTRA_PACKAGES"
+
     for pkg in "${packages[@]}"; do
-        sudo pacman -S --noconfirm "$pkg" 2>/dev/null || \
-            yay -S --noconfirm "$pkg" 2>/dev/null || \
-            log "Warning: Failed to install $pkg"
+        if [ "$(id -u)" -eq 0 ]; then
+            if ! pacman -S --noconfirm "$pkg"; then
+                log "Warning: Failed to install $pkg with pacman"
+            fi
+            continue
+        fi
+
+        if sudo pacman -S --noconfirm "$pkg"; then
+            continue
+        fi
+
+        if command -v yay >/dev/null 2>&1 && yay -S --noconfirm "$pkg"; then
+            continue
+        fi
+
+        log "Warning: Failed to install $pkg"
     done
+
+    export EXTRA_PACKAGES_INSTALLED=1
 }
 
 setup_auto_update() {
@@ -130,8 +150,20 @@ main() {
 
     if [ "$(id -u)" -eq 0 ]; then
         setup_user
-        exec sudo -u "$USERNAME" -E -H /usr/local/bin/entrypoint.sh "$@"
+        install_extra_packages
+        if command -v setpriv >/dev/null 2>&1; then
+            TARGET_UID=$(id -u "$USERNAME")
+            TARGET_GID=$(id -g "$USERNAME")
+            TARGET_GROUPS=$(id -G "$USERNAME" | tr ' ' ',')
+            exec setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --groups="$TARGET_GROUPS" /usr/local/bin/entrypoint.sh "$@"
+        fi
+        log "setpriv not available; refusing to continue as root"
+        exit 1
     fi
+
+    export HOME="/home/$USERNAME"
+    export USER="$USERNAME"
+    export LOGNAME="$USERNAME"
 
     cd "$WORKSPACE_DIR" 2>/dev/null || true
     install_extra_packages
