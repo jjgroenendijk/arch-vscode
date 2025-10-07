@@ -4,7 +4,6 @@ FROM archlinux/archlinux:latest
 
 # Build arguments for flexibility
 ARG ENTRYPOINT_SCRIPT=entrypoint.sh
-ARG TARGETARCH=amd64
 
 # Set environment for non-interactive installation
 ENV LANG=C.UTF-8
@@ -63,14 +62,8 @@ RUN bash -lc '\
 # Download and install VS Code directly from Microsoft
 USER root
 WORKDIR /tmp
-RUN case ${TARGETARCH} in \
-        amd64) ARCH=x64 ;; \
-        arm64) ARCH=arm64 ;; \
-        arm) ARCH=arm ;; \
-        *) ARCH=x64 ;; \
-    esac && \
-    mkdir -p /tmp/vscode && \
-    curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/latest/linux-${ARCH}/stable" && \
+RUN mkdir -p /tmp/vscode && \
+    curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/latest/linux-x64/stable" && \
     mkdir -p /opt/vscode && \
     tar -xzf /tmp/vscode/vscode.tar.gz -C /opt/vscode --strip-components=1 && \
     ln -sf /opt/vscode/bin/code /usr/local/bin/code && \
