@@ -12,7 +12,7 @@ services:
       - TZ=UTC
     volumes:
       - ./test-workspace:/workspace
-      - ./test-config:/home/usert/.config/arch-vscode
+      - ./test-home:/home/usert
     ports:
       - "9999:8080"
     restart: "no"

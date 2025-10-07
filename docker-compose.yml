@@ -13,7 +13,7 @@ services:
       - TZ=${TZ:-UTC}
     volumes:
       - ./:/workspace
-      - ./config:/home/${USERNAME:-developer}/.config/arch-vscode
+      - ./home:/home/${USERNAME:-developer}
     ports:
       - "8080:8080"
     restart: unless-stopped

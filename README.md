@@ -39,7 +39,7 @@ services:
       - VSCODE_CONNECTION_TOKEN=${VSCODE_CONNECTION_TOKEN:-}
     volumes:
       - ./:/workspace
-      - ./config:/home/${USERNAME:-developer}/.config/arch-vscode
+      - ./home:/home/${USERNAME:-developer}
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -47,13 +47,13 @@ services:
 
 Commands: `docker-compose up -d` / `docker-compose down`
 
-Before starting the stack for the first time, create a directory on the host to hold the VS Code data:
+Before starting the stack for the first time, create a directory on the host to hold the VS Code data and home directory contents:
 
 ```bash
-mkdir -p ./config
+mkdir -p ./home
 ```
 
-`./config` is a host directory relative to the compose file. Swap it for any other path when binding to `/home/${USERNAME}/.config/arch-vscode` inside the container.
+`./home` is a host directory relative to the compose file. Swap it for any other path when binding to `/home/${USERNAME}` inside the container.
 
 ## Configuration
 
@@ -115,17 +115,17 @@ docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroen
 
 ### Directory Structure
 ```
-$HOME/.config/arch-vscode/
-├── user-data/      # Settings, preferences, workspace state
-├── extensions/     # Installed extensions
-├── server-data/    # VS Code server runtime
-└── cli-data/       # CLI metadata
-
 /home/
-└── {username}/     # Shell history, configs, SSH keys, installed packages
+└── {username}/
+    ├── .config/arch-vscode/
+    │   ├── user-data/      # Settings, preferences, workspace state
+    │   ├── extensions/     # Installed extensions
+    │   ├── server-data/    # VS Code server runtime
+    │   └── cli-data/       # CLI metadata
+    └── ...                 # Shell history, SSH keys, caches, extra packages
 ```
 
-Bind-mount `./config` (or a directory of your choice) to `/home/${USERNAME}/.config/arch-vscode` to persist extensions, settings, and server state across container rebuilds.
+Bind-mount `./home` (or a directory of your choice) to `/home/${USERNAME}` to persist the VS Code data, shell history, and any other files you place in the home directory.
 
 ## Container Architecture
 
