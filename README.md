@@ -43,6 +43,14 @@ services:
 
 Commands: `docker-compose up -d` / `docker-compose down`
 
+Before starting the stack for the first time, create a directory on the host to hold the VS Code data:
+
+```bash
+mkdir -p ./config
+```
+
+You can swap `./config` for any other host path when you bind it to `/home/${USERNAME}/.config/arch-vscode`.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and customize. Key variables:
