@@ -8,6 +8,7 @@ USERNAME=${USERNAME:-developer}
 WORKSPACE_DIR=${WORKSPACE_DIR:-/workspace}
 VSCODE_DEFAULT_FOLDER=${VSCODE_DEFAULT_FOLDER:-/workspace}
 EXTRA_PACKAGES=${EXTRA_PACKAGES:-""}
+NPM_PACKAGES=${NPM_PACKAGES:-""}
 AUTO_UPDATE=${AUTO_UPDATE:-false}
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
@@ -74,6 +75,41 @@ install_extra_packages() {
     export EXTRA_PACKAGES_INSTALLED=1
 }
 
+# Function to install npm packages (installs nodejs/npm on-demand)
+install_npm_packages() {
+    if [ -n "$NPM_PACKAGES" ]; then
+        log "NPM packages requested: $NPM_PACKAGES"
+
+        # Check if npm is available, if not install nodejs/npm
+        if ! command -v npm >/dev/null 2>&1; then
+            log "npm not found, installing nodejs and npm..."
+            if sudo pacman -S --noconfirm nodejs npm 2>/dev/null; then
+                log "nodejs and npm installed successfully"
+            else
+                log "ERROR: Failed to install nodejs/npm, cannot install npm packages"
+                return 1
+            fi
+        else
+            log "npm already available: $(npm --version)"
+        fi
+
+        # Install each npm package globally (requires sudo for /usr/lib/node_modules)
+        for package in $NPM_PACKAGES; do
+            log "Installing npm package: $package"
+            if sudo npm install -g "$package"; then
+                log "Successfully installed npm package: $package"
+            else
+                log "Warning: Failed to install npm package: $package"
+            fi
+        done
+
+        log "NPM packages installation completed"
+    else
+        log "No npm packages to install"
+    fi
+}
+
+# Function to setup auto-update
 setup_auto_update() {
     [ "$AUTO_UPDATE" != "true" ] && return
     log "Enabling auto-update..."
@@ -209,6 +245,11 @@ main() {
 
     cd "$WORKSPACE_DIR" 2>/dev/null || true
     install_extra_packages
+
+    # Install npm packages if specified
+    install_npm_packages
+
+    # Setup auto-update if enabled
     setup_auto_update
     setup_ssh_agent
     start_vscode

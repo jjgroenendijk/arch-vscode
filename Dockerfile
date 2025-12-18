@@ -89,6 +89,7 @@ ENV PUID=1000 \
     VSCODE_VERBOSE=false \
     VSCODE_LOG_LEVEL=info \
     EXTRA_PACKAGES="" \
+    NPM_PACKAGES="" \
     AUTO_UPDATE=false \
     TZ=UTC \
     SSL_CERT_DIR=/etc/ssl/certs \

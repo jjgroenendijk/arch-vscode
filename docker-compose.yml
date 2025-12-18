@@ -10,6 +10,8 @@ services:
       - VSCODE_DEFAULT_FOLDER=${VSCODE_DEFAULT_FOLDER:-/workspace}
       - EXTRA_PACKAGES=${EXTRA_PACKAGES:-}
       - AUTO_UPDATE=${AUTO_UPDATE:-false}
+      - EXTRA_PACKAGES=${EXTRA_PACKAGES:-}
+      - NPM_PACKAGES=${NPM_PACKAGES:-}
       - TZ=${TZ:-UTC}
     volumes:
       - ./:/workspace

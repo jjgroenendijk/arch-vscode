@@ -88,6 +88,12 @@ Copy `.env.example` to `.env` and customize. Key variables:
 - `VSCODE_CLI_DATA_DIR=$VSCODE_CONFIG_ROOT/cli-data`
 - These values default to the paths above when unset; override any of them if you need a different layout.
 
+**System Configuration:**
+- `EXTRA_PACKAGES=""` - Additional packages to install via yay (space-separated)
+- `NPM_PACKAGES=""` - npm packages to install globally (space-separated, installs nodejs/npm on-demand)
+- `AUTO_UPDATE=false` - Enable automatic system updates every 24 hours
+- `TZ=UTC` - Timezone setting
+
 ## Usage Examples
 
 **Custom port:**
@@ -112,6 +118,46 @@ docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroen
 ```
 
 ## Persistence
+
+### Installing Extra Packages
+```bash
+# Install system packages via pacman/yay
+docker run -p 8080:8080 -e EXTRA_PACKAGES="python rust" jjgroenendijk/arch-vscode:latest
+
+# Install npm packages (nodejs/npm installed automatically if needed)
+docker run -p 8080:8080 -e NPM_PACKAGES="typescript eslint prettier" jjgroenendijk/arch-vscode:latest
+
+# Combine system and npm packages
+docker run -p 8080:8080 \
+  -e EXTRA_PACKAGES="python" \
+  -e NPM_PACKAGES="typescript ts-node" \
+  jjgroenendijk/arch-vscode:latest
+```
+
+## Development Workflow
+
+1. **Start Container**:
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Access VS Code**:
+   - Open http://localhost:8080 in your browser
+   - No authentication required
+
+3. **Mount Project**:
+   ```bash
+   # Your project files are available at /workspace
+   cd /workspace
+   ```
+
+4. **Install Extensions**:
+   - Use VS Code extension marketplace
+   - Extensions are persisted in volume
+
+## Data Persistence
+
+VS Code data is automatically persisted in the `/config` directory, providing complete persistence across container restarts:
 
 ### Directory Structure
 ```
