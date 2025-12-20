@@ -4,95 +4,107 @@ Arch Linux development environment with VS Code accessible via web browser (serv
 
 ## Features
 
-- Official Arch Linux base (`archlinux:latest`)
-- Microsoft VS Code direct download
-- Web interface at localhost:8080
-- Configurable PUID/PGID for file permissions
+- VS Code in your browser (no desktop app needed)
+- Based on Arch Linux with full package access
+- Install packages automatically on startup
+- All your settings and extensions persist
 - AUR support via yay
-- Persistent VS Code data stored under the user home directory
+- SSH agent for git operations
+- Optional auto-updates
+- Configurable user permissions (no file ownership issues)
 
 ## Quick Start
 
-Pull and run:
+**Option 1: Quick test (doesn't save anything):**
 ```bash
-docker pull jjgroenendijk/arch-vscode:latest
 docker run -it --rm -v $(pwd):/workspace -p 8080:8080 jjgroenendijk/arch-vscode:latest
 ```
 
-Alternative registry: `ghcr.io/jjgroenendijk/arch-vscode:latest`
+**Option 2: With persistence (recommended):**
+```bash
+mkdir -p ./home
+docker run -d \
+  -v $(pwd):/workspace \
+  -v $(pwd)/home:/home/developer \
+  -p 8080:8080 \
+  jjgroenendijk/arch-vscode:latest
+```
 
-Access VS Code at http://localhost:8080 (no auth required).
+Then open http://localhost:8080 in your browser.
 
-## Docker Compose
+**Alternative registry:** `ghcr.io/jjgroenendijk/arch-vscode:latest`
 
-Minimal `docker-compose.yml`:
+## Docker Compose (Recommended)
+
+Create a `docker-compose.yml`:
 ```yaml
 services:
   arch-vscode:
     image: ghcr.io/jjgroenendijk/arch-vscode:latest
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-      - USERNAME=${USERNAME:-developer}
-      - VSCODE_HOST=${VSCODE_HOST:-0.0.0.0}
-      - VSCODE_PORT=${VSCODE_PORT:-8080}
-      - VSCODE_CONNECTION_TOKEN=${VSCODE_CONNECTION_TOKEN:-}
+      - PUID=1000                    # Your user ID (run: id -u)
+      - PGID=1000                    # Your group ID (run: id -g)
+      - USERNAME=developer           # Username in container
+      - EXTRA_PACKAGES=              # e.g., "python git vim"
+      - NPM_PACKAGES=                # e.g., "typescript eslint"
     volumes:
-      - ./:/workspace
-      - ./home:/home/${USERNAME:-developer}
+      - ./:/workspace                # Your project files
+      - ./home:/home/developer       # Persistent VS Code data
     ports:
       - "8080:8080"
     restart: unless-stopped
 ```
 
-Commands: `docker-compose up -d` / `docker-compose down`
-
-Before starting the stack for the first time, create a directory on the host to hold the VS Code data and home directory contents:
-
+Then run:
 ```bash
 mkdir -p ./home
+docker compose up -d
 ```
 
-`./home` is a host directory relative to the compose file. Swap it for any other path when binding to `/home/${USERNAME}` inside the container.
+Access VS Code at <http://localhost:8080>
+
+To stop: `docker compose down`
 
 ## Configuration
 
-Copy `.env.example` to `.env` and customize. Key variables:
+Copy `.env.example` to `.env` and customize any values you need. Below is a complete list of all available environment variables:
 
-**Core:**
-- `PUID=1000` - User ID
-- `PGID=1000` - Group ID
-- `USERNAME=developer` - Container username
-- `WORKSPACE_DIR=/workspace` - Workspace path
-- `VSCODE_DEFAULT_FOLDER=/workspace` - VS Code default folder
+| Variable | Default | Description |
+|----------|---------|-------------|
+| **User Settings** | | |
+| `PUID` | `1000` | User ID (match your host user to avoid permission issues) |
+| `PGID` | `1000` | Group ID (match your host group to avoid permission issues) |
+| `USERNAME` | `developer` | Username inside the container |
+| **Workspace** | | |
+| `WORKSPACE_DIR` | `/workspace` | Workspace directory inside the container |
+| `VSCODE_DEFAULT_FOLDER` | `/workspace` | Folder VS Code opens on startup |
+| **VS Code Server** | | |
+| `VSCODE_HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for localhost-only) |
+| `VSCODE_PORT` | `8080` | Port VS Code listens on |
+| `VSCODE_CONNECTION_TOKEN` | _(empty)_ | Authentication token (empty = no auth required) |
+| `VSCODE_SOCKET_PATH` | _(empty)_ | UNIX socket path (if set, uses socket instead of TCP) |
+| `VSCODE_ACCEPT_LICENSE` | `true` | Auto-accept VS Code server license |
+| `VSCODE_VERBOSE` | `false` | Enable verbose logging |
+| `VSCODE_LOG_LEVEL` | `info` | Log level: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off` |
+| **VS Code Data Directories** | | |
+| `VSCODE_CONFIG_ROOT` | `$HOME/.config/arch-vscode` | Root directory for all VS Code data |
+| `VSCODE_USER_DATA_DIR` | `$VSCODE_CONFIG_ROOT/user-data` | Settings and preferences |
+| `VSCODE_EXTENSIONS_DIR` | `$VSCODE_CONFIG_ROOT/extensions` | Installed extensions |
+| `VSCODE_SERVER_DATA_DIR` | `$VSCODE_CONFIG_ROOT/server-data` | Server runtime data |
+| `VSCODE_CLI_DATA_DIR` | `$VSCODE_CONFIG_ROOT/cli-data` | CLI metadata |
+| `XDG_CONFIG_HOME` | `$HOME/.config` | XDG config directory |
+| `XDG_DATA_HOME` | `$HOME/.local/share` | XDG data directory |
+| **Package Installation** | | |
+| `EXTRA_PACKAGES` | _(empty)_ | Space-separated Arch packages to install (e.g., `python git vim`) |
+| `NPM_PACKAGES` | _(empty)_ | Space-separated npm packages to install (e.g., `typescript eslint`) |
+| **System** | | |
+| `AUTO_UPDATE` | `false` | Enable automatic system updates (runs daily at 2 AM) |
+| `TZ` | `UTC` | Timezone (e.g., `America/New_York`, `Europe/London`) |
 
-**VS Code Server:**
-- `VSCODE_HOST=0.0.0.0` - Bind address
-- `VSCODE_PORT=8080` - Listen port
-- `VSCODE_CONNECTION_TOKEN=""` - Auth token (empty=no auth)
-- `VSCODE_SOCKET_PATH=""` - Optional UNIX socket
-- `VSCODE_VERBOSE=false` - Verbose logging
-- `VSCODE_LOG_LEVEL=info` - Log level (trace|debug|info|warn|error|critical|off)
-- `VSCODE_ACCEPT_LICENSE=true` - Auto-accept server license terms
-
-**System:**
-- `EXTRA_PACKAGES=""` - Space-separated packages to install at startup
-- `AUTO_UPDATE=false` - Enable auto-updates
-- `TZ=UTC` - Timezone
-
-**Directories:**
-- `VSCODE_CONFIG_ROOT=$HOME/.config/arch-vscode`
-- `VSCODE_USER_DATA_DIR=$VSCODE_CONFIG_ROOT/user-data`
-- `VSCODE_EXTENSIONS_DIR=$VSCODE_CONFIG_ROOT/extensions`
-- `VSCODE_SERVER_DATA_DIR=$VSCODE_CONFIG_ROOT/server-data`
-- `VSCODE_CLI_DATA_DIR=$VSCODE_CONFIG_ROOT/cli-data`
-- These values default to the paths above when unset; override any of them if you need a different layout.
-
-**System Configuration:**
-- `EXTRA_PACKAGES=""` - Additional packages to install via yay (space-separated)
-- `NPM_PACKAGES=""` - npm packages to install globally (space-separated, installs nodejs/npm on-demand)
-- `AUTO_UPDATE=false` - Enable automatic system updates every 24 hours
-- `TZ=UTC` - Timezone setting
+**Notes:**
+- The package database is automatically synced before installing packages
+- If `NPM_PACKAGES` is set and npm isn't installed, nodejs/npm will be installed automatically
+- Packages are installed fresh on each container start (not persisted in the image)
 
 ## Usage Examples
 
@@ -117,108 +129,102 @@ docker run -p 127.0.0.1:8080:8080 -e VSCODE_HOST=127.0.0.1 jjgroenendijk/arch-vs
 docker run -p 8080:8080 -e VSCODE_VERBOSE=true -e VSCODE_LOG_LEVEL=debug jjgroenendijk/arch-vscode:latest
 ```
 
-## Persistence
+## Installing Extra Packages
 
-### Installing Extra Packages
+You can automatically install packages when the container starts:
+
+**Arch Linux packages (via pacman/yay):**
 ```bash
-# Install system packages via pacman/yay
-docker run -p 8080:8080 -e EXTRA_PACKAGES="python rust" jjgroenendijk/arch-vscode:latest
+docker run -p 8080:8080 -e EXTRA_PACKAGES="python rust go vim" jjgroenendijk/arch-vscode:latest
+```
 
-# Install npm packages (nodejs/npm installed automatically if needed)
+**npm packages (nodejs/npm installed automatically if needed):**
+```bash
 docker run -p 8080:8080 -e NPM_PACKAGES="typescript eslint prettier" jjgroenendijk/arch-vscode:latest
+```
 
-# Combine system and npm packages
+**Both together:**
+```bash
 docker run -p 8080:8080 \
-  -e EXTRA_PACKAGES="python" \
-  -e NPM_PACKAGES="typescript ts-node" \
+  -e EXTRA_PACKAGES="python git" \
+  -e NPM_PACKAGES="@anthropic-ai/claude-code" \
   jjgroenendijk/arch-vscode:latest
 ```
 
-## Development Workflow
+**In docker-compose.yml:**
+```yaml
+services:
+  arch-vscode:
+    image: ghcr.io/jjgroenendijk/arch-vscode:latest
+    environment:
+      - EXTRA_PACKAGES=python rust go
+      - NPM_PACKAGES=typescript eslint
+    volumes:
+      - ./:/workspace
+      - ./home:/home/developer
+    ports:
+      - "8080:8080"
+```
 
-1. **Start Container**:
+**Important:** Packages are installed fresh each time the container starts. For permanent packages, build your own image that extends this one.
+
+## How to Use
+
+1. **Start the container:**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
-2. **Access VS Code**:
-   - Open http://localhost:8080 in your browser
-   - No authentication required
+2. **Open VS Code in your browser:**
+   - Go to <http://localhost:8080>
+   - No password needed (unless you set `VSCODE_CONNECTION_TOKEN`)
 
-3. **Mount Project**:
-   ```bash
-   # Your project files are available at /workspace
-   cd /workspace
-   ```
+3. **Your files are available:**
+   - Whatever you mounted to `/workspace` is accessible in VS Code
+   - Install extensions from the VS Code marketplace
+   - Everything persists in the `./home` directory
 
-4. **Install Extensions**:
-   - Use VS Code extension marketplace
-   - Extensions are persisted in volume
+## Where Your Data is Stored
 
-## Data Persistence
+When you mount `./home` to `/home/developer` (or your custom username), everything persists across container restarts:
 
-VS Code data is automatically persisted in the `/config` directory, providing complete persistence across container restarts:
-
-### Directory Structure
-```
-/home/
-└── {username}/
-    ├── .config/arch-vscode/
-    │   ├── user-data/      # Settings, preferences, workspace state
-    │   ├── extensions/     # Installed extensions
-    │   ├── server-data/    # VS Code server runtime
-    │   └── cli-data/       # CLI metadata
-    └── ...                 # Shell history, SSH keys, caches, extra packages
+```text
+./home/developer/
+├── .config/arch-vscode/    # VS Code settings, extensions, and data
+├── .bashrc                 # Shell configuration
+├── .ssh/                   # SSH keys
+└── ...                     # Anything else you create
 ```
 
-Bind-mount `./home` (or a directory of your choice) to `/home/${USERNAME}` to persist the VS Code data, shell history, and any other files you place in the home directory.
+Your project files go in `/workspace` (mount your project directory there).
 
-## Container Architecture
+## Additional Features
 
-```
-/
-├── workspace/          # Project files (mount your directory here)
-├── home/{username}/    # User home (+ VS Code data under .config/arch-vscode)
-└── usr/local/bin/
-    └── entrypoint.sh   # Startup script
-```
+**SSH Agent:** Automatically started for git operations with SSH keys.
 
-Container starts as root, entrypoint switches to configured user. UID/GID mappings via PUID/PGID prevent permission issues.
+**File Permissions:** Set `PUID` and `PGID` to match your host user ID to avoid permission problems with mounted files.
 
-## Features Detail
+**Auto-Updates:** Set `AUTO_UPDATE=true` to enable daily system updates (runs at 2 AM).
 
-**SSH Agent:** Entrypoint starts `ssh-agent` when one is not already running so `SSH_AUTH_SOCK` is available for git operations.
+**Sudo Access:** The container user has full sudo privileges (no password required).
 
-**Package Installation:** Runtime pacman/yay installs modify the container filesystem and are lost when the container is rebuilt. Use `EXTRA_PACKAGES` (reinstalled on each start) or bake dependencies into a custom image for persistence.
-
-**Custom Username:** Set USERNAME env var. Default is "developer". Home persists regardless of username.
+**Package Database:** Automatically synced before installing packages, even if the Docker image is outdated.
 
 ## Troubleshooting
 
-**Container exits:** Check logs `docker logs <name>`. Try `docker run -it jjgroenendijk/arch-vscode:latest /bin/bash`.
-
-**Permission issues:** Set `PUID=$(id -u)` and `PGID=$(id -g)`.
-
-**VS Code not accessible:** Verify port 8080 free, check logs for errors.
-
-**SSH agent:** Verify with `echo $SSH_AUTH_SOCK` inside container.
-
-**Packages not persisting:** Ensure home volume mounted and writable.
-
-### Debug Commands
+**View auto-update logs** (when `AUTO_UPDATE=true`):
 ```bash
-docker ps -a                                         # Container status
-docker logs <name>                                   # View logs
-docker exec -it <name> /bin/bash                     # Shell access
-docker run jjgroenendijk/arch-vscode:latest code --version  # Test VS Code
+docker exec -it <container-name> cat /var/log/auto-update.log
 ```
 
-## Build Logs
+**Check VS Code server status:**
+```bash
+docker logs <container-name>
+```
 
-Package installation logs stored in `/var/log/`:
-- `pacman-update.log` - System updates
-- `pacman-install.log` - Package installs
-- `pacman-cleanup.log` - Cache cleanup
+**Permission issues with files:**
+- Make sure `PUID` and `PGID` match your host user (`id -u` and `id -g`)
+- The home directory should be owned by your user
 
 ## License
 

@@ -49,6 +49,13 @@ install_extra_packages() {
         return
     fi
 
+    log "Synchronizing package database..."
+    if [ "$(id -u)" -eq 0 ]; then
+        pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
+    else
+        sudo pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
+    fi
+
     log "Installing packages: $EXTRA_PACKAGES"
     local -a packages=()
     read -r -a packages <<< "$EXTRA_PACKAGES"
@@ -83,6 +90,9 @@ install_npm_packages() {
         # Check if npm is available, if not install nodejs/npm
         if ! command -v npm >/dev/null 2>&1; then
             log "npm not found, installing nodejs and npm..."
+            log "Synchronizing package database..."
+            sudo pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
+
             if sudo pacman -S --noconfirm nodejs npm 2>/dev/null; then
                 log "nodejs and npm installed successfully"
             else
