@@ -1,0 +1,53 @@
+name: Keep Workflows Active
+
+on:
+  schedule:
+    # Run every 50 days to prevent the 60-day inactivity timeout
+    - cron: '0 0 */50 * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Enable all workflows
+      run: |
+        echo "Re-enabling workflows to prevent automatic disabling..."
+        gh workflow enable publish.yml || true
+        gh workflow enable ci.yml || true
+        gh workflow enable update-readme.yml || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create activity commit
+      run: |
+        # Update a timestamp file to create repository activity
+        mkdir -p .github
+        echo "Last activity: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > .github/last-activity.txt
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        if git diff --quiet; then
+          echo "No changes to commit"
+        else
+          git add .github/last-activity.txt
+          git commit -m "chore: update activity timestamp [skip ci]"
+          git push
+        fi
+
+    - name: Summary
+      run: |
+        echo "## Keep-Alive Workflow Executed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "All workflows have been re-enabled to prevent automatic disabling." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Next run:** Approximately 50 days from now" >> $GITHUB_STEP_SUMMARY
+        echo "**Trigger:** This workflow can also be triggered manually via workflow_dispatch" >> $GITHUB_STEP_SUMMARY
