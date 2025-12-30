@@ -43,18 +43,37 @@ setup_user() {
     chown -R "$PUID:$PGID" "/home/$USERNAME" /workspace 2>/dev/null || true
 }
 
+refresh_package_database() {
+    if [ "${PACKAGE_DB_REFRESHED:-0}" = "1" ]; then
+        return
+    fi
+
+    log "Refreshing package database..."
+    if [ "$(id -u)" -eq 0 ]; then
+        # Sync package databases with retry on failure
+        if ! pacman -Syy --noconfirm 2>&1; then
+            log "First sync attempt failed, retrying..."
+            sleep 2
+            pacman -Syy --noconfirm 2>&1 || log "Warning: Failed to sync package database"
+        fi
+    else
+        if ! sudo pacman -Syy --noconfirm 2>&1; then
+            log "First sync attempt failed, retrying..."
+            sleep 2
+            sudo pacman -Syy --noconfirm 2>&1 || log "Warning: Failed to sync package database"
+        fi
+    fi
+    export PACKAGE_DB_REFRESHED=1
+    log "Package database refreshed"
+}
+
 install_extra_packages() {
     [ -z "$EXTRA_PACKAGES" ] && return
     if [ "${EXTRA_PACKAGES_INSTALLED:-0}" = "1" ]; then
         return
     fi
 
-    log "Synchronizing package database..."
-    if [ "$(id -u)" -eq 0 ]; then
-        pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
-    else
-        sudo pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
-    fi
+    refresh_package_database
 
     log "Installing packages: $EXTRA_PACKAGES"
     local -a packages=()
@@ -90,8 +109,7 @@ install_npm_packages() {
         # Check if npm is available, if not install nodejs/npm
         if ! command -v npm >/dev/null 2>&1; then
             log "npm not found, installing nodejs and npm..."
-            log "Synchronizing package database..."
-            sudo pacman -Sy --noconfirm >/dev/null 2>&1 || log "Warning: Failed to sync package database"
+            refresh_package_database
 
             if sudo pacman -S --noconfirm nodejs npm 2>/dev/null; then
                 log "nodejs and npm installed successfully"
