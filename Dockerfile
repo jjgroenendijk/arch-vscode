@@ -41,12 +41,13 @@ RUN useradd -m -s /bin/bash -G wheel developer && \
     echo "developer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Install yay (AUR helper) as developer user (logs in home directory)
+# Optimization: Use yay-bin to save build time and image size (avoids Go dependency)
 USER developer
 RUN bash -lc '\
     log=/tmp/yay-install.log; \
     : > "$log"; \
     tmpdir=$(mktemp -d); \
-    if git clone https://aur.archlinux.org/yay.git "$tmpdir" >> "$log" 2>&1; then \
+    if git clone https://aur.archlinux.org/yay-bin.git "$tmpdir" >> "$log" 2>&1; then \
         cd "$tmpdir"; \
         if makepkg -si --noconfirm >> "$log" 2>&1; then \
             echo "yay installed successfully" >> "$log"; \
