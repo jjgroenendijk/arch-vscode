@@ -77,21 +77,24 @@ install_extra_packages() {
 
     log "Installing packages: $EXTRA_PACKAGES"
     local -a packages=()
-    read -r -a packages <<< "$EXTRA_PACKAGES"
+    # Replace tabs and newlines with spaces to safely parse multiline strings
+    read -r -a packages <<< "${EXTRA_PACKAGES//[$'\t\r\n']/ }"
 
     for pkg in "${packages[@]}"; do
+        [ -z "$pkg" ] && continue
         if [ "$(id -u)" -eq 0 ]; then
-            if ! pacman -S --noconfirm "$pkg"; then
+            # Use -- to prevent argument injection
+            if ! pacman -S --noconfirm -- "$pkg"; then
                 log "Warning: Failed to install $pkg with pacman"
             fi
             continue
         fi
 
-        if sudo pacman -S --noconfirm "$pkg"; then
+        if sudo pacman -S --noconfirm -- "$pkg"; then
             continue
         fi
 
-        if command -v yay >/dev/null 2>&1 && yay -S --noconfirm "$pkg"; then
+        if command -v yay >/dev/null 2>&1 && yay -S --noconfirm -- "$pkg"; then
             continue
         fi
 
@@ -122,9 +125,14 @@ install_npm_packages() {
         fi
 
         # Install each npm package globally (requires sudo for /usr/lib/node_modules)
-        for package in $NPM_PACKAGES; do
+        local -a packages=()
+        # Replace tabs and newlines with spaces to safely parse multiline strings
+        read -r -a packages <<< "${NPM_PACKAGES//[$'\t\r\n']/ }"
+        for package in "${packages[@]}"; do
+            [ -z "$package" ] && continue
             log "Installing npm package: $package"
-            if sudo npm install -g "$package"; then
+            # Use -- to prevent argument injection
+            if sudo npm install -g -- "$package"; then
                 log "Successfully installed npm package: $package"
             else
                 log "Warning: Failed to install npm package: $package"
