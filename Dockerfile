@@ -59,11 +59,19 @@ RUN bash -lc '\
     rm -rf "$tmpdir" || true; \
     true'
 
-# Download and install VS Code directly from Microsoft
+# Download and install VS Code directly from Microsoft.
+# Version is pinned because `code serve-web` is broken on 1.119.0+: the CLI
+# launcher's hyper 1.x migration drops the WebSocket upgrade, so the workbench
+# never connects. Tracked upstream at
+# https://github.com/microsoft/vscode/issues/315448 (fix milestoned for
+# 1.121.0). Renovate watches the ARG below and opens a PR when a newer stable
+# release is published; the pin can be removed once a known-good release ships.
+# renovate: datasource=github-tags depName=microsoft/vscode
+ARG VSCODE_VERSION=1.115.0
 USER root
 WORKDIR /tmp
 RUN mkdir -p /tmp/vscode && \
-    curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/latest/linux-x64/stable" && \
+    curl -L -o /tmp/vscode/vscode.tar.gz "https://update.code.visualstudio.com/${VSCODE_VERSION}/linux-x64/stable" && \
     mkdir -p /opt/vscode && \
     tar -xzf /tmp/vscode/vscode.tar.gz -C /opt/vscode --strip-components=1 && \
     ln -sf /opt/vscode/bin/code /usr/local/bin/code && \
