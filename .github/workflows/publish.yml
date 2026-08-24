@@ -18,6 +18,23 @@ env:
   IMAGE_NAME: jjgroenendijk/arch-vscode
 
 jobs:
+  # Scheduled workflows get disabled after 60 days of repository inactivity,
+  # and a disabled workflow cannot re-enable itself. This job runs from an
+  # always-active workflow so keep-alive.yml gets switched back on without
+  # manual intervention.
+  keep-workflows-enabled:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: write
+    steps:
+    - name: Re-enable scheduled workflows
+      run: |
+        gh workflow enable keep-alive.yml --repo "$GITHUB_REPOSITORY" || true
+        gh workflow enable publish.yml --repo "$GITHUB_REPOSITORY" || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-push:
     runs-on: ubuntu-latest
     permissions:

@@ -60,14 +60,10 @@ RUN bash -lc '\
     true'
 
 # Download and install VS Code directly from Microsoft.
-# Version is pinned because `code serve-web` is broken on 1.119.0+: the CLI
-# launcher's hyper 1.x migration drops the WebSocket upgrade, so the workbench
-# never connects. Tracked upstream at
-# https://github.com/microsoft/vscode/issues/315448 (fix milestoned for
-# 1.121.0). Renovate watches the ARG below and opens a PR when a newer stable
-# release is published; the pin can be removed once a known-good release ships.
-# renovate: datasource=github-tags depName=microsoft/vscode
-ARG VSCODE_VERSION=1.115.0
+# Tracks the latest stable release. The 1.115.0 pin that worked around the
+# `code serve-web` WebSocket regression (microsoft/vscode#315448) is no longer
+# needed: that bug was fixed upstream in 1.121.0.
+ARG VSCODE_VERSION=latest
 USER root
 WORKDIR /tmp
 RUN mkdir -p /tmp/vscode && \
