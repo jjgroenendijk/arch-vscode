@@ -2,8 +2,8 @@ name: Keep Workflows Active
 
 on:
   schedule:
-    # Run every 50 days to prevent the 60-day inactivity timeout
-    - cron: '0 0 */50 * *'
+    # Run on the 1st of every month, well inside the 60-day inactivity timeout
+    - cron: '0 0 1 * *'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +20,10 @@ jobs:
     - name: Enable all workflows
       run: |
         echo "Re-enabling workflows to prevent automatic disabling..."
+        # keep-alive.yml is listed first: it is scheduled too, so it can be
+        # disabled by inactivity as well, and a disabled keep-alive cannot
+        # re-enable anything (including itself) on a later run.
+        gh workflow enable keep-alive.yml || true
         gh workflow enable publish.yml || true
         gh workflow enable ci.yml || true
         gh workflow enable update-readme.yml || true

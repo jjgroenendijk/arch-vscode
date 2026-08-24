@@ -59,7 +59,7 @@ When `./home` is mounted to `/home/developer`, settings, extensions and shell co
 
 ## Notes
 
-- VS Code is pinned to a known-good upstream release because `code serve-web` is broken on 1.119.0+ (see [microsoft/vscode#315448](https://github.com/microsoft/vscode/issues/315448)). Renovate watches the pin and opens a PR when a working newer release ships.
+- VS Code tracks the latest stable release from Microsoft. Override it at build time with `--build-arg VSCODE_VERSION=1.130.0` if you need a specific release.
 - The container user has passwordless `sudo`.
 - The package database is synced on each start, so `EXTRA_PACKAGES` works even with an old image.
 
